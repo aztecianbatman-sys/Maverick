@@ -10,7 +10,7 @@ There are two planned desktop experiences:
 
 ## Current state
 
-The project has finished the first two development phases.
+The project has finished the first three development phases.
 
 ### Phase 1 — AI shell
 
@@ -47,6 +47,28 @@ It currently provides:
 Phase 2 is **not a finished antivirus engine**. The scanner does not make malware verdicts, the quarantine layer does not move/delete files yet, and there is no kernel driver.
 
 That distinction is deliberate.
+
+### Phase 3 — Activity Journal
+
+The local Core journal now has a real event schema instead of a loose summary log.
+
+Each security event can carry:
+- time
+- event type
+- process
+- file
+- action
+- result
+- risk
+- evidence
+- severity
+- source
+- summary
+- structured details
+
+The Core can return recent events, today’s events, and filtered searches. Existing Phase 2 databases are upgraded in place.
+
+Maverick AI can also use today’s journal for security-oriented questions such as “what happened today?” The local events are retrieved from Maverick Core first and then supplied to the user’s selected BYOK model as evidence. Normal conversations do not receive journal data.
 
 ## Building
 
@@ -118,9 +140,9 @@ API keys are stored by Electron using OS-backed secret storage. They are never w
 
 ## What is next
 
-**Phase 3** is where Maverick starts making security decisions: detection signals, reputation, behavioral correlation, safer containment, and stronger IPC authorization.
+**Phase 4** is where Maverick starts making security decisions: detection signals, reputation, behavioral correlation, safer containment, and stronger IPC authorization.
 
-That comes only after the foundation is stable.
+That comes only after the journal foundation is stable.
 
 ## Maverick VI
 
