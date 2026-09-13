@@ -1,0 +1,16 @@
+{
+  "name": "maverick",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Maverick desktop security platform",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "build": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "37.2.6",
+    "electron-builder": "^26.0.12"
+  }
+}
