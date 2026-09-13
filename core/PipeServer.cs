@@ -118,7 +118,7 @@ public sealed class PipeServer : BackgroundService
                 "status" => new
                 {
                     service = "Maverick Core",
-                    version = "0.2.0",
+                    version = "0.3.0",
                     mode = "user-mode",
                     capabilities = new[]
                     {
