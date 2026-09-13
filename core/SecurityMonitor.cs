@@ -109,26 +109,43 @@ public sealed class SecurityMonitor : BackgroundService
         }
     }
 
-    private Task RecordFileEvent(string kind, string path) =>
-        journal.RecordAsync(
-            "filesystem",
-            "info",
-            "FileSystemWatcher",
-            $"{kind}: {path}",
-            new { kind, path });
+    private Task RecordFileEvent(string kind, string path)
+    {
+        var fullPath = Path.GetFullPath(path);
+        var file = Path.GetFileName(fullPath);
+        return journal.RecordAsync(
+            type: "filesystem",
+            severity: "info",
+            source: "FileSystemWatcher",
+            summary: $"{kind}: {fullPath}",
+            details: new { kind, path = fullPath },
+            file: fullPath,
+            action: kind,
+            result: kind == "deleted" ? "removed" : "observed",
+            risk: "unknown");
+    }
 
-    private Task RecordRenameEvent(RenamedEventArgs e) =>
-        journal.RecordAsync(
-            "filesystem",
-            "info",
-            "FileSystemWatcher",
-            $"renamed: {e.OldFullPath} -> {e.FullPath}",
-            new
+    private Task RecordRenameEvent(RenamedEventArgs e)
+    {
+        var oldPath = Path.GetFullPath(e.OldFullPath);
+        var newPath = Path.GetFullPath(e.FullPath);
+        return journal.RecordAsync(
+            type: "filesystem",
+            severity: "info",
+            source: "FileSystemWatcher",
+            summary: $"renamed: {oldPath} -> {newPath}",
+            details: new
             {
                 kind = "renamed",
-                oldPath = e.OldFullPath,
-                path = e.FullPath
-            });
+                oldPath,
+                path = newPath
+            },
+            file: newPath,
+            action: "renamed",
+            result: "observed",
+            risk: "unknown",
+            evidence: new[] { $"old-path:{oldPath}" });
+    }
 
     private sealed record MonitorConfig(List<string> Paths);
 }
