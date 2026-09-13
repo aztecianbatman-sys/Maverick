@@ -95,7 +95,7 @@ function normalizeModels(provider, payload) {
 }
 
 async function fetchModels({ provider, baseUrl, apiKey }) {
-  const url = new URL("/models", baseUrl.endsWith("/") ? baseUrl : baseUrl + "/").toString();
+  const url = joinApiEndpoint(baseUrl, "models");
   const response = await fetch(url, {
     headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
   });
