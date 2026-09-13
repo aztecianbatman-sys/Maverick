@@ -199,7 +199,7 @@ export default function App() {
       {sidebarOpen && <button className="scrim" aria-label="Close sidebar" onClick={() => setSidebarOpen(false)} />}
       <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
         <div className="sidebar-top">
-          <div className="brand-row"><img src="/assets/maverick-icon.png" alt="" /><span>Maverick</span></div>
+          <div className="brand-row"><img src="/assets/maverick-icon.svg" alt="" /><span>Maverick</span></div>
           <button className="icon-button" onClick={() => setSidebarOpen(false)} aria-label="Close"><X size={18}/></button>
         </div>
         <button className="new-chat" onClick={newChat}><Plus size={17}/> New chat</button>
@@ -248,11 +248,6 @@ export default function App() {
               <div className="hello">HELLO!</div>
               <p>I'M MAVERICK.</p>
               <span className="welcome-note">Ask about your device, security, or anything else.</span>
-              <div className="suggestions">
-                <button onClick={() => setComposer("What should I know about my device?")}><ShieldCheck size={15}/> Security</button>
-                <button onClick={() => setComposer("Help me choose an AI model.")}><Bot size={15}/> Models</button>
-                <button onClick={() => setComposer("Explain how Maverick stores my data.")}><FileText size={15}/> Privacy</button>
-              </div>
             </div>
           )}
         </section>
