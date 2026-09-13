@@ -1,87 +1,140 @@
 # Maverick Architecture
 
-## Phase 0 boundary
-
-Phase 0 defines the boundaries between the desktop UI, security core, AI layer, and local data. It does **not** implement antivirus behavior yet.
-
-## System layout
+Maverick has two desktop faces and one shared security foundation.
 
 ```
-                    MAVERICK
-                       │
-             ┌─────────┴─────────┐
-             │                   │
-      Maverick Security      Maverick AI
-             │                   │
-             └─────────┬─────────┘
-                       │
-                 Maverick Core
-                       │
-          ┌────────────┼────────────┐
-          ▼            ▼            ▼
-       Scanner     Monitor       Journal
-          │            │            │
-          └────────────┴────────────┘
-                       │
-                 Windows APIs
+                         MAVERICK
+                            │
+              ┌─────────────┴─────────────┐
+              │                           │
+       Maverick Security             Maverick AI
+              │                           │
+              └─────────────┬─────────────┘
+                            │
+                      Maverick Core
+                            │
+             ┌──────────────┼──────────────┐
+             ▼              ▼              ▼
+          Scanner        Monitor         Journal
+             │              │              │
+             └──────────────┴──────────────┘
+                            │
+                       Windows APIs
 ```
 
-## Technology boundary
-
-### Desktop shell
-- Electron **37.2.6**
-- React + TypeScript for the interface (Phase 1)
-
-### Security core
-- Native Windows service
-- C#/.NET
-- Windows APIs
-- The core owns protection decisions; the UI does not.
-
-### Data
-- SQLite/local files
-- Local journal and application state remain on-device.
-- Secrets/API credentials must use Windows-protected storage rather than plain-text files.
-
-### IPC
-Electron communicates with the native security core through a narrow, authenticated IPC boundary. The browser/UI process must not receive arbitrary native execution capabilities.
-
-### AI
-The AI layer is an adapter over user-selected BYOK providers. The AI can explain and investigate structured security data, while protection remains independent of model availability.
-
-## Two-app model
-
-The two applications share the same Maverick Core and security data contracts:
-
-```
-Maverick Core
-├── Maverick Security UI
-└── Maverick AI UI
-```
-
-The AI edition adds conversation/investigation capabilities; it does not replace the protection engine.
-
-## Phase boundaries
+## Phase status
 
 ### Phase 0 — Architecture
-- Repository structure
-- Technology decisions
-- Security/data boundaries
-- Build foundations
+Done.
 
 ### Phase 1 — Maverick AI shell
-- Minimal 16:9 desktop UI
-- Maverick VI typography
-- Sidebar
-- Chat interface
-- BYOK provider support
-- Model browsing and free-model filtering
-- Local persistence
+Done.
 
-### Later phases
-- Native security core
-- Real-time monitoring
-- Quarantine/containment
-- Investigation engine
-- Windows/Defender integration
-- Testing, packaging, signing, release
+### Phase 2 — Local security foundation
+Implemented as the first native security layer.
+
+The native core is a C#/.NET 8 Worker Service that is intended to run as the **Maverick Core** Windows service. It stays in user mode; there is no kernel driver and no arbitrary command execution surface.
+
+### Phase 2 capabilities
+
+**File inspection**
+- metadata inspection
+- SHA-256 hashing
+- file-safe sharing during reads
+
+**System inventory**
+- running processes
+- process IDs, names, sessions, and best-effort executable paths
+- Windows services
+- scheduled tasks through the Windows `schtasks.exe` utility
+- startup entries from HKLM, HKLM WOW6432, loaded user hives, and the common Startup folder
+
+**Filesystem monitoring**
+- configurable directories
+- recursive monitoring
+- create/change/delete/rename events
+- monitor error events
+- configuration persisted locally
+
+**Journal**
+- SQLite-backed local security event journal
+- UTC timestamps
+- severity, source, summary, and structured details
+- indexed recent-event queries
+
+**Scan foundation**
+- file and directory traversal
+- SHA-256 inventory
+- inaccessible-file counting
+- cancellation support
+- explicit `inventory-only` verdict so hashing is never presented as malware detection
+
+**Quarantine foundation**
+- metadata records for a prospective quarantine item
+- original path
+- hash and size when available
+- status tracking
+- no destructive file movement in this phase
+
+**IPC**
+- Windows named pipe: `MaverickCore`
+- one JSON request per connection
+- narrow command allow-list
+- authenticated-user ACL
+- Electron gets a small bridge instead of arbitrary native access
+
+### Phase 2 IPC commands
+
+```
+status
+file.inspect
+processes.list
+services.list
+tasks.list
+startup.list
+journal.recent
+scan
+quarantine.register
+monitor.configure
+```
+
+The desktop process can call these through `electron/core-client.js` and the preload bridge. The AI does not receive direct native execution access.
+
+## Local storage
+
+The Core service owns:
+
+- `%ProgramData%\\Maverick\\maverick.db`
+- `%ProgramData%\\Maverick\\config.json`
+- `%ProgramData%\\Maverick\\Quarantine\\`
+
+The Electron application keeps its own user-scoped store under Electron's application data directory.
+
+## Service lifecycle
+
+The repository includes PowerShell helpers:
+
+```
+npm run core:build
+npm run core:install
+npm run core:uninstall
+```
+
+Installation requires an elevated PowerShell session. The current installer registers the published Core executable with Windows Service Control Manager and configures automatic startup/restart behavior.
+
+## Security boundary
+
+Phase 2 intentionally avoids behavior-based malware verdicts, kernel callbacks, automatic deletion, and unrestricted process execution.
+
+The Core service is a foundation for the next phase. Before public deployment, IPC authorization should be tightened from the current authenticated-user ACL to the intended interactive-user identity and the protocol should gain request authentication/replay protection.
+
+## Next
+
+### Phase 3 — Protection engine
+Detection pipelines, reputation signals, behavior correlation, safe containment, stronger IPC authorization, and Windows security-provider integration work.
+
+### Phase 4 — Investigation
+Evidence timelines, threat narratives, AI investigation tools, and richer local journal queries.
+
+### Phase 5 — Production hardening
+Service packaging, signing, crash/recovery testing, performance testing, security regression tests, and release automation.
