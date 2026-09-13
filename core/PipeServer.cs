@@ -16,6 +16,7 @@ public sealed class PipeServer : BackgroundService
     private readonly QuarantineMetadata quarantine;
     private readonly ScanService scans;
     private readonly SecurityMonitor monitor;
+    private readonly ProtectionService protection;
 
     public PipeServer(
         FileInspector files,
@@ -23,7 +24,8 @@ public sealed class PipeServer : BackgroundService
         Journal journal,
         QuarantineMetadata quarantine,
         ScanService scans,
-        SecurityMonitor monitor)
+        SecurityMonitor monitor,
+        ProtectionService protection)
     {
         this.files = files;
         this.inventory = inventory;
@@ -31,6 +33,7 @@ public sealed class PipeServer : BackgroundService
         this.quarantine = quarantine;
         this.scans = scans;
         this.monitor = monitor;
+        this.protection = protection;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -129,6 +132,8 @@ public sealed class PipeServer : BackgroundService
                         "services",
                         "scheduled-tasks",
                         "filesystem-monitor",
+                        "file-protection",
+                        "process-monitor",
                         "journal",
                         "journal-query",
                         "quarantine-metadata",
@@ -176,6 +181,20 @@ public sealed class PipeServer : BackgroundService
                     root.GetProperty("path").GetString() ?? ""),
 
                 "monitor.configure" => await ConfigureMonitorAsync(root),
+
+                "protection.status" => new
+                {
+                    mode = "user-mode",
+                    verdicts = new[] { "Safe", "Suspicious", "Threat" },
+                    automaticContainment = "EICAR test signature only"
+                },
+
+                "file.analyze" => await protection.AnalyzeFileAsync(
+                    root.GetProperty("path").GetString() ?? "",
+                    root.TryGetProperty("quarantine", out var quarantine)
+                        ? quarantine.GetBoolean()
+                        : false,
+                    token),
 
                 _ => throw new InvalidOperationException(
                     $"Unknown command: {command}")
