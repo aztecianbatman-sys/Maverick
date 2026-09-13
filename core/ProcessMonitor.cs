@@ -6,11 +6,21 @@ namespace Maverick.Core;
 public sealed class ProcessMonitor : BackgroundService
 {
     private readonly Journal journal;
+    private readonly ProtectionAnalyzer analyzer;
+    private readonly ContainmentService containment;
+    private readonly ProcessTracker tracker;
     private readonly ConcurrentDictionary<int, byte> seen = new();
 
-    public ProcessMonitor(Journal journal)
+    public ProcessMonitor(
+        Journal journal,
+        ProtectionAnalyzer analyzer,
+        ContainmentService containment,
+        ProcessTracker tracker)
     {
         this.journal = journal;
+        this.analyzer = analyzer;
+        this.containment = containment;
+        this.tracker = tracker;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -45,6 +55,9 @@ public sealed class ProcessMonitor : BackgroundService
                 string? executablePath = null;
                 try { executablePath = process.MainModule?.FileName; } catch { }
 
+                if (!string.IsNullOrWhiteSpace(executablePath))
+                    tracker.Add(process.Id, name, executablePath);
+
                 var evidence = new List<string>();
                 var score = 0;
 
@@ -76,6 +89,50 @@ public sealed class ProcessMonitor : BackgroundService
                 }
 
                 var risk = score >= 20 ? "Medium" : "Low";
+                if (!string.IsNullOrWhiteSpace(executablePath) && File.Exists(executablePath))
+                {
+                    try
+                    {
+                        var verdict = await analyzer.AnalyzeFileAsync(executablePath);
+
+                        if (verdict.Verdict == "Threat" && verdict.Action == "Quarantine")
+                        {
+                            await journal.RecordAsync(
+                                "process_threat",
+                                "high",
+                                "Maverick.ProcessMonitor",
+                                $"Threat process detected: {name}",
+                                new { pid = process.Id, executablePath, verdict },
+                                process: name,
+                                file: executablePath,
+                                action: "contain",
+                                result: "threat",
+                                risk: "high",
+                                evidence: verdict.Evidence);
+
+                            await containment.TerminateThreatProcessAsync(
+                                process.Id,
+                                "Executable image received a deterministic Threat verdict.",
+                                verdict.Evidence,
+                                token);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        await journal.RecordAsync(
+                            "process_analysis_error",
+                            "warning",
+                            "Maverick.ProcessMonitor",
+                            $"Could not analyze process image for {name}.",
+                            new { pid = process.Id, executablePath, error = ex.Message },
+                            process: name,
+                            file: executablePath,
+                            action: "analyze",
+                            result: "error",
+                            risk: "unknown");
+                    }
+                }
+
                 await journal.RecordAsync(
                     type: "process_start",
                     severity: risk == "Medium" ? "warning" : "info",
@@ -100,7 +157,10 @@ public sealed class ProcessMonitor : BackgroundService
         foreach (var id in seen.Keys)
         {
             if (!currentIds.Contains(id))
+            {
                 seen.TryRemove(id, out _);
+                tracker.Remove(id);
+            }
         }
     }
 }
