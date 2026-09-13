@@ -6,13 +6,15 @@ public sealed class SecurityMonitor : BackgroundService
 {
     private readonly Journal journal;
     private readonly CorePaths paths;
+    private readonly ProtectionService protection;
     private readonly List<FileSystemWatcher> watchers = new();
     private readonly object sync = new();
 
-    public SecurityMonitor(Journal journal, CorePaths paths)
+    public SecurityMonitor(Journal journal, CorePaths paths, ProtectionService protection)
     {
         this.journal = journal;
         this.paths = paths;
+        this.protection = protection;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -50,10 +52,10 @@ public sealed class SecurityMonitor : BackgroundService
                 };
 
                 watcher.Created += (_, e) =>
-                    _ = RecordFileEvent("created", e.FullPath);
+                    _ = HandleChangedFileAsync("created", e.FullPath);
 
                 watcher.Changed += (_, e) =>
-                    _ = RecordFileEvent("changed", e.FullPath);
+                    _ = HandleChangedFileAsync("changed", e.FullPath);
 
                 watcher.Deleted += (_, e) =>
                     _ = RecordFileEvent("deleted", e.FullPath);
@@ -106,6 +108,37 @@ public sealed class SecurityMonitor : BackgroundService
                 "Maverick.Core",
                 "Could not load monitor configuration.",
                 new { error = ex.Message });
+        }
+    }
+
+    private async Task HandleChangedFileAsync(string kind, string path)
+    {
+        var fullPath = Path.GetFullPath(path);
+        await RecordFileEvent(kind, fullPath);
+
+        if (!File.Exists(fullPath))
+            return;
+
+        try
+        {
+            await Task.Delay(250);
+            await protection.AnalyzeFileAsync(
+                fullPath,
+                allowQuarantine: true,
+                CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            await journal.RecordAsync(
+                "protection_analysis_error",
+                "warning",
+                "Maverick.Protection",
+                $"Could not analyze {fullPath}",
+                new { path = fullPath, error = ex.Message },
+                file: fullPath,
+                action: "analyze",
+                result: "error",
+                risk: "unknown");
         }
     }
 
