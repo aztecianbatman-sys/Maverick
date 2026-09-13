@@ -147,7 +147,7 @@ It supports:
 When a security-oriented chat question is detected, Maverick asks the Core for today's journal and supplies those local events to the selected BYOK model as evidence. The AI is explicitly instructed not to invent events or verdicts. Ordinary chats do not receive journal data.
 
 ### Phase 4 — Real-time protection
-In progress — **Phase 4A implemented**.
+In progress — **Phase 4A and 4B implemented**.
 
 Phase 4A adds the first actual protection decision path in user mode:
 - filesystem create/change events invoke the protection analyzer
@@ -159,7 +159,7 @@ Phase 4A adds the first actual protection decision path in user mode:
 
 The heuristic analyzer intentionally uses conservative alert-only behavior at this stage. It does not claim that an executable in a temporary or Downloads folder is malware.
 
-This phase will eventually grow into behavior correlation, persistence and download signals, but those are not enabled yet.
+This phase now also includes guarded process containment, ransomware burst detection, download-origin correlation via Windows Zone.Identifier metadata, and targeted startup persistence remediation. Kernel-level telemetry remains out of scope for the user-mode phase.
 
 ### Phase 4 — Investigation
 Evidence timelines, threat narratives, AI investigation tools, and richer local journal queries.
