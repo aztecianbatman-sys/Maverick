@@ -8,75 +8,126 @@ There are two planned desktop experiences:
 
 **Maverick AI** uses the same Maverick security core, then adds local activity history, investigations, and a BYOK chat interface so an AI model can help explain what is happening on the device.
 
-## Where the project is right now
+## Current state
 
-Phase 1 is the first working desktop shell:
+The project has finished the first two development phases.
+
+### Phase 1 — AI shell
 
 - Electron 37.2.6
 - React + TypeScript + Vite
 - Minimal 16:9 dark interface
-- Collapsible sidebar and local conversation history
-- BYOK provider settings
+- Collapsible sidebar and local conversations
+- BYOK settings
 - OpenAI-compatible API support
-- Provider model browsing
-- Separate **Free** model filtering based on provider pricing metadata
-- Local model cache, chat history, and AI activity log
-- OS-protected storage for the saved API key
-- No fake AI replies and no fake security detections
+- Provider model browser
+- Separate Free model filtering based on provider pricing metadata
+- Local model cache and chat/activity persistence
+- OS-protected local storage for the saved API key
 
-The actual security engine is deliberately **not** part of this phase yet. That comes after the interface and AI boundary are stable.
+### Phase 2 — Local security foundation
 
-## Running it
+The first native Maverick Core is now in the repository as a C#/.NET 8 Windows Worker Service.
 
-Install Node.js, then run:
+It currently provides:
+
+- file inspection and SHA-256 hashing
+- process inventory
+- Windows service inventory
+- scheduled-task inventory
+- startup-location inventory
+- configurable recursive filesystem monitoring
+- SQLite local security events
+- inventory-only scans
+- quarantine metadata
+- narrow Windows named-pipe IPC
+- Electron-to-Core bridge
+- service build/install/uninstall helpers
+
+Phase 2 is **not a finished antivirus engine**. The scanner does not make malware verdicts, the quarantine layer does not move/delete files yet, and there is no kernel driver.
+
+That distinction is deliberate.
+
+## Building
+
+For the Electron app:
 
 ```bash
 npm install
 npm run dev
 ```
 
-For the production renderer build:
+For the native Core on Windows with .NET installed:
 
 ```bash
-npm run build
+npm run core:build
 ```
 
-## API setup
+The published Core goes to `dist-core/`.
 
-Open **API & settings** in Maverick AI.
+To install the Windows service, open **PowerShell as Administrator** and run:
 
-Choose **OpenRouter** for the built-in model browser, or **Custom OpenAI-compatible** for another compatible endpoint.
+```powershell
+npm run core:install
+```
 
-Paste your own key, test the connection, refresh the model list, and choose a model. Maverick stores the saved key locally using Electron's OS-backed secret storage; the renderer never receives the stored key.
+To remove it later:
 
-For providers that expose zero-cost pricing, Maverick marks models as **FREE**. It does not invent a free label when the provider does not supply enough pricing information.
+```powershell
+npm run core:uninstall
+```
+
+## Core architecture
+
+```
+                         MAVERICK
+                            │
+              ┌─────────────┴─────────────┐
+              │                           │
+       Maverick Security             Maverick AI
+              │                           │
+              └─────────────┬─────────────┘
+                            │
+                      Maverick Core
+                            │
+             ┌──────────────┼──────────────┐
+             ▼              ▼              ▼
+          Scanner        Monitor         Journal
+             │              │              │
+             └──────────────┴──────────────┘
+                            │
+                       Windows APIs
+```
+
+Electron talks to the native Core through a small named-pipe protocol. The Core owns native security operations; the renderer does not get arbitrary native execution access.
 
 ## Local data
 
-Phase 1 keeps conversations, the AI activity log, cached model data, and application settings on the device. There is no Maverick cloud account in this version.
-
-The local store is written under Electron's application data directory.
-
-## Project shape
+The Core stores its database and configuration under:
 
 ```
-Maverick/
-├── app/          # future shared app material
-├── ai/           # AI adapters and contracts
-├── assets/       # branding/assets
-├── core/         # future native Windows security engine
-├── data/         # local-data boundary
-├── electron/     # Electron main process + IPC
-├── src/          # Maverick AI renderer
-└── docs/         # architecture notes
+%ProgramData%\Maverick\
+├── maverick.db
+├── config.json
+└── Quarantine\
 ```
+
+The Electron app keeps user-facing application data in its own Electron application-data directory.
+
+API keys are stored by Electron using OS-backed secret storage. They are never written as plain text to the repository.
+
+## What is next
+
+**Phase 3** is where Maverick starts making security decisions: detection signals, reputation, behavioral correlation, safer containment, and stronger IPC authorization.
+
+That comes only after the foundation is stable.
 
 ## Maverick VI
 
-The Maverick VI artwork we designed is currently a **font specimen/reference**, not a real WOFF2/TTF font binary. Phase 1 keeps the display font role reserved for Maverick VI so the finished font can be dropped in without changing the UI, but the project does not pretend a font file exists yet.
+Maverick VI is the project's intended display typeface. The specimen artwork is a visual reference, not a finished WOFF2/TTF binary yet, so the repository does not pretend otherwise.
 
 ## The rule for Maverick
 
 Build one phase at a time.
 
-No pretend scans. No fake detections. No invented security claims. The chat can be incomplete; the security engine can be incomplete; the product should never lie about either.
+No pretend scans. No fake detections. No invented security claims. If something is experimental, incomplete, or inventory-only, Maverick says so.
