@@ -2,18 +2,51 @@
   "name": "maverick",
   "version": "0.3.0",
   "private": true,
-  "description": "Maverick desktop security platform",
+  "description": "Maverick — your friendly friend for your device.",
   "main": "electron/main.js",
   "scripts": {
+    "dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
+    "build": "tsc -b && vite build",
     "start": "electron .",
-    "dev": "electron .",
-    "build": "electron-builder",
+    "build:app": "npm run build && electron-builder",
     "core:build": "powershell -ExecutionPolicy Bypass -File scripts/build-core.ps1",
     "core:install": "powershell -ExecutionPolicy Bypass -File scripts/install-core.ps1",
     "core:uninstall": "powershell -ExecutionPolicy Bypass -File scripts/uninstall-core.ps1"
   },
+  "dependencies": {
+    "lucide-react": "^0.468.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
   "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.4.1",
+    "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
     "electron": "37.2.6",
-    "electron-builder": "^26.0.12"
+    "electron-builder": "^26.0.12",
+    "typescript": "^5.7.2",
+    "vite": "^6.1.0",
+    "wait-on": "^8.0.2"
+  },
+  "build": {
+    "appId": "com.maverick.security",
+    "productName": "Maverick",
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }
