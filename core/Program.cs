@@ -19,6 +19,11 @@ public static class Program
         builder.Services.AddSingleton<ProtectionAnalyzer>();
         builder.Services.AddSingleton<QuarantineService>();
         builder.Services.AddSingleton<ProtectionService>();
+        builder.Services.AddSingleton<ContainmentService>();
+        builder.Services.AddSingleton<DownloadOriginReader>();
+        builder.Services.AddSingleton<ProcessTracker>();
+        builder.Services.AddSingleton<RansomwareGuard>();
+        builder.Services.AddSingleton<StartupPersistenceGuard>();
         builder.Services.AddSingleton<ScanService>();
 
         builder.Services.AddSingleton<SecurityMonitor>();
@@ -26,6 +31,7 @@ public static class Program
             sp.GetRequiredService<SecurityMonitor>());
 
         builder.Services.AddHostedService<ProcessMonitor>();
+        builder.Services.AddHostedService<PersistenceMonitor>();
         builder.Services.AddHostedService<PipeServer>();
 
         return builder.Build().RunAsync();
