@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, safeStorage, shell } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs/promises");
+const { request: coreRequest } = require("./core-client");
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 const STORE_DIR = path.join(app.getPath("userData"), "maverick");
@@ -224,6 +225,10 @@ app.whenReady().then(async () => {
       model: input?.model || store.settings.model,
       messages: Array.isArray(input?.messages) ? input.messages : [],
     });
+  });
+
+  ipcMain.handle("core:request", async (_, command, payload) => {
+    return coreRequest(String(command || ""), payload && typeof payload === "object" ? payload : {});
   });
 
   ipcMain.handle("shell:open-external", async (_, url) => {
