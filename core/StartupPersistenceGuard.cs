@@ -17,7 +17,7 @@ public sealed class StartupPersistenceGuard
     {
         var removed = 0;
 
-        foreach (var hive in new[] { Registry.LocalMachine })
+        foreach (var hive in new[] { Registry.LocalMachine, Registry.CurrentUser })
         {
             foreach (var keyPath in new[]
             {
