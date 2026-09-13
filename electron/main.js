@@ -70,6 +70,11 @@ function sanitizeSettings(store) {
   };
 }
 
+function joinApiEndpoint(baseUrl, endpoint) {
+  const normalized = String(baseUrl || "").replace(/\/+$/, "");
+  return normalized + "/" + String(endpoint || "").replace(/^\/+/, "");
+}
+
 function isFreeModel(model) {
   const prompt = Number(model?.pricing?.prompt ?? NaN);
   const completion = Number(model?.pricing?.completion ?? NaN);
