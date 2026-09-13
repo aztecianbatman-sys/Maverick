@@ -96,7 +96,7 @@ public sealed class ProtectionAnalyzer
         try
         {
             var bytes = await File.ReadAllBytesAsync(path);
-            var text = Encoding.ASCII.GetString(bytes).TrimEnd('\\r', '\\n');
+            var text = Encoding.ASCII.GetString(bytes).TrimEnd('\r', '\n');
             return string.Equals(text, EicarMarker, StringComparison.Ordinal);
         }
         catch
