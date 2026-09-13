@@ -47,7 +47,12 @@ public sealed class QuarantineMetadata
                 sha256 = sha,
                 status = "metadata-only",
                 quarantineDirectory = paths.QuarantineDirectory
-            });
+            },
+            file: info.FullName,
+            action: "register-quarantine-metadata",
+            result: "recorded",
+            risk: "unknown",
+            evidence: sha is null ? null : new[] { $"sha256:{sha}" });
 
         return new
         {
