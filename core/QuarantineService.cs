@@ -4,11 +4,13 @@ public sealed class QuarantineService
 {
     private readonly CorePaths paths;
     private readonly Journal journal;
+    private readonly FileInspector inspector;
 
-    public QuarantineService(CorePaths paths, Journal journal)
+    public QuarantineService(CorePaths paths, Journal journal, FileInspector inspector)
     {
         this.paths = paths;
         this.journal = journal;
+        this.inspector = inspector;
     }
 
     public async Task<object> QuarantineAsync(
@@ -27,7 +29,7 @@ public sealed class QuarantineService
             id + ".quarantined");
 
         var info = new FileInfo(source);
-        var hash = await new FileInspector().HashAsync(source);
+        var hash = await inspector.HashAsync(source);
 
         Directory.CreateDirectory(paths.QuarantineDirectory);
         File.Move(source, destination, overwrite: false);
@@ -77,5 +79,54 @@ public sealed class QuarantineService
             reason,
             status = "quarantined"
         };
+    }
+}
+
+
+    public Task<object> ListAsync()
+    {
+        var items = Directory.EnumerateFiles(paths.QuarantineDirectory, "*", SearchOption.TopDirectoryOnly)
+            .Select(path => new FileInfo(path))
+            .OrderByDescending(info => info.CreationTimeUtc)
+            .Select(info => new
+            {
+                path = info.FullName,
+                name = info.Name,
+                sizeBytes = info.Length,
+                createdUtc = info.CreationTimeUtc
+            })
+            .ToList();
+
+        return Task.FromResult<object>(items);
+    }
+
+    public async Task<object> DeleteQuarantinedAsync(string path)
+    {
+        var quarantineRoot = Path.GetFullPath(paths.QuarantineDirectory)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            + Path.DirectorySeparatorChar;
+
+        var target = Path.GetFullPath(path);
+
+        if (!target.StartsWith(quarantineRoot, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Only files inside Maverick quarantine may be deleted.");
+
+        if (!File.Exists(target))
+            throw new FileNotFoundException("Quarantine file not found.", target);
+
+        File.Delete(target);
+
+        await journal.RecordAsync(
+            "quarantine_delete",
+            "high",
+            "Maverick.Core",
+            $"Deleted quarantined item {Path.GetFileName(target)}",
+            new { quarantinePath = target },
+            file: target,
+            action: "delete-quarantined",
+            result: "deleted",
+            risk: "high");
+
+        return new { quarantinePath = target, status = "deleted" };
     }
 }
