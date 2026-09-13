@@ -110,7 +110,7 @@ async function chatRequest({ provider, baseUrl, apiKey, model, messages }) {
   if (!apiKey) throw new Error("Add a provider API key first.");
   if (!model) throw new Error("Choose a model first.");
 
-  const endpoint = new URL("/chat/completions", baseUrl.endsWith("/") ? baseUrl : baseUrl + "/").toString();
+  const endpoint = joinApiEndpoint(baseUrl, "chat/completions");
   const response = await fetch(endpoint, {
     method: "POST",
     headers: {
