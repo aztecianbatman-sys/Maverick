@@ -42,7 +42,7 @@ public sealed class QuarantineService
         }
         catch
         {
-            // Read-only is defense-in-depth; quarantine already succeeded.
+            // Defense in depth; the quarantine move already succeeded.
         }
 
         await journal.RecordQuarantineAsync(
@@ -80,12 +80,13 @@ public sealed class QuarantineService
             status = "quarantined"
         };
     }
-}
-
 
     public Task<object> ListAsync()
     {
-        var items = Directory.EnumerateFiles(paths.QuarantineDirectory, "*", SearchOption.TopDirectoryOnly)
+        var items = Directory.EnumerateFiles(
+                paths.QuarantineDirectory,
+                "*",
+                SearchOption.TopDirectoryOnly)
             .Select(path => new FileInfo(path))
             .OrderByDescending(info => info.CreationTimeUtc)
             .Select(info => new
@@ -102,17 +103,23 @@ public sealed class QuarantineService
 
     public async Task<object> DeleteQuarantinedAsync(string path)
     {
-        var quarantineRoot = Path.GetFullPath(paths.QuarantineDirectory)
+        var root = Path.GetFullPath(paths.QuarantineDirectory)
             .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
             + Path.DirectorySeparatorChar;
 
         var target = Path.GetFullPath(path);
 
-        if (!target.StartsWith(quarantineRoot, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("Only files inside Maverick quarantine may be deleted.");
+        if (!target.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException(
+                "Only files inside Maverick quarantine may be deleted.");
 
         if (!File.Exists(target))
-            throw new FileNotFoundException("Quarantine file not found.", target);
+            throw new FileNotFoundException(
+                "Quarantine file not found.", target);
+
+        File.SetAttributes(
+            target,
+            File.GetAttributes(target) & ~FileAttributes.ReadOnly);
 
         File.Delete(target);
 
@@ -127,6 +134,10 @@ public sealed class QuarantineService
             result: "deleted",
             risk: "high");
 
-        return new { quarantinePath = target, status = "deleted" };
+        return new
+        {
+            quarantinePath = target,
+            status = "deleted"
+        };
     }
 }
