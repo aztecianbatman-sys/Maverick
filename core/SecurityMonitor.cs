@@ -1,0 +1,152 @@
+using System.Text.Json;
+
+namespace Maverick.Core;
+
+public sealed class SecurityMonitor : BackgroundService
+{
+    private readonly Journal journal;
+    private readonly CorePaths paths;
+    private readonly List<FileSystemWatcher> watchers = new();
+    private readonly object sync = new();
+
+    public SecurityMonitor(Journal journal, CorePaths paths)
+    {
+        this.journal = journal;
+        this.paths = paths;
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        await LoadConfiguredWatchesAsync(stoppingToken);
+        await stoppingToken.WaitHandle.WaitOneAsync();
+    }
+
+    public async Task ConfigureAsync(IEnumerable<string> requestedPaths)
+    {
+        var pathsToWatch = requestedPaths
+            .Where(Directory.Exists)
+            .Select(Path.GetFullPath)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(20)
+            .ToList();
+
+        lock (sync)
+        {
+            foreach (var watcher in watchers)
+                watcher.Dispose();
+
+            watchers.Clear();
+
+            foreach (var path in pathsToWatch)
+            {
+                var watcher = new FileSystemWatcher(path)
+                {
+                    IncludeSubdirectories = true,
+                    NotifyFilter =
+                        NotifyFilters.FileName |
+                        NotifyFilters.DirectoryName |
+                        NotifyFilters.LastWrite |
+                        NotifyFilters.Size
+                };
+
+                watcher.Created += (_, e) =>
+                    _ = RecordFileEvent("created", e.FullPath);
+
+                watcher.Changed += (_, e) =>
+                    _ = RecordFileEvent("changed", e.FullPath);
+
+                watcher.Deleted += (_, e) =>
+                    _ = RecordFileEvent("deleted", e.FullPath);
+
+                watcher.Renamed += (_, e) =>
+                    _ = RecordRenameEvent(e);
+
+                watcher.Error += (_, e) =>
+                    _ = journal.RecordAsync(
+                        "monitor_error",
+                        "warning",
+                        "FileSystemWatcher",
+                        e.GetException()?.Message ?? "Watcher error",
+                        new { path });
+
+                watcher.EnableRaisingEvents = true;
+                watchers.Add(watcher);
+            }
+        }
+
+        var config = JsonSerializer.Serialize(new { paths = pathsToWatch });
+        await File.WriteAllTextAsync(paths.ConfigPath, config);
+
+        await journal.RecordAsync(
+            "monitor_configured",
+            "info",
+            "Maverick.Core",
+            $"Monitoring {pathsToWatch.Count} directories",
+            new { paths = pathsToWatch });
+    }
+
+    private async Task LoadConfiguredWatchesAsync(CancellationToken token)
+    {
+        if (!File.Exists(paths.ConfigPath))
+            return;
+
+        try
+        {
+            var json = await File.ReadAllTextAsync(paths.ConfigPath, token);
+            var config = JsonSerializer.Deserialize<MonitorConfig>(json);
+
+            if (config?.Paths is not null)
+                await ConfigureAsync(config.Paths);
+        }
+        catch (Exception ex)
+        {
+            await journal.RecordAsync(
+                "monitor_config_error",
+                "warning",
+                "Maverick.Core",
+                "Could not load monitor configuration.",
+                new { error = ex.Message });
+        }
+    }
+
+    private Task RecordFileEvent(string kind, string path) =>
+        journal.RecordAsync(
+            "filesystem",
+            "info",
+            "FileSystemWatcher",
+            $"{kind}: {path}",
+            new { kind, path });
+
+    private Task RecordRenameEvent(RenamedEventArgs e) =>
+        journal.RecordAsync(
+            "filesystem",
+            "info",
+            "FileSystemWatcher",
+            $"renamed: {e.OldFullPath} -> {e.FullPath}",
+            new
+            {
+                kind = "renamed",
+                oldPath = e.OldFullPath,
+                path = e.FullPath
+            });
+
+    private sealed record MonitorConfig(List<string> Paths);
+}
+
+file static class CancellationTokenWaitHandleExtensions
+{
+    public static Task WaitOneAsync(this WaitHandle handle)
+    {
+        var tcs = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        ThreadPool.RegisterWaitForSingleObject(
+            handle,
+            (_, _) => tcs.TrySetResult(),
+            null,
+            -1,
+            executeOnlyOnce: true);
+
+        return tcs.Task;
+    }
+}
