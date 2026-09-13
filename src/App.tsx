@@ -69,6 +69,7 @@ export default function App() {
       setBaseUrlDraft(loaded.settings.baseUrl);
       setModelDraft(loaded.settings.model);
       window.maverick.cachedModels(loaded.settings.provider).then(setModels);
+      window.maverick.configureDefaultMonitoring().catch(() => undefined);
     });
   }, []);
 
