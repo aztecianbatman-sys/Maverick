@@ -1,13 +1,16 @@
 {
   "name": "maverick",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Maverick desktop security platform",
   "main": "electron/main.js",
   "scripts": {
     "start": "electron .",
     "dev": "electron .",
-    "build": "electron-builder"
+    "build": "electron-builder",
+    "core:build": "powershell -ExecutionPolicy Bypass -File scripts/build-core.ps1",
+    "core:install": "powershell -ExecutionPolicy Bypass -File scripts/install-core.ps1",
+    "core:uninstall": "powershell -ExecutionPolicy Bypass -File scripts/uninstall-core.ps1"
   },
   "devDependencies": {
     "electron": "37.2.6",
