@@ -7,14 +7,16 @@ public sealed class SecurityMonitor : BackgroundService
     private readonly Journal journal;
     private readonly CorePaths paths;
     private readonly ProtectionService protection;
+    private readonly RansomwareGuard ransomware;
     private readonly List<FileSystemWatcher> watchers = new();
     private readonly object sync = new();
 
-    public SecurityMonitor(Journal journal, CorePaths paths, ProtectionService protection)
+    public SecurityMonitor(Journal journal, CorePaths paths, ProtectionService protection, RansomwareGuard ransomware)
     {
         this.journal = journal;
         this.paths = paths;
         this.protection = protection;
+        this.ransomware = ransomware;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -115,6 +117,7 @@ public sealed class SecurityMonitor : BackgroundService
     {
         var fullPath = Path.GetFullPath(path);
         await RecordFileEvent(kind, fullPath);
+        await ransomware.ObserveAsync(kind, fullPath, CancellationToken.None);
 
         if (!File.Exists(fullPath))
             return;
