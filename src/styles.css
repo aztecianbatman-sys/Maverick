@@ -75,3 +75,5 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .scrim{display:none}
 @media (max-width:900px){.sidebar{position:absolute;left:0;top:0;bottom:0;transform:translateX(-105%);transition:transform .18s ease;box-shadow:30px 0 60px rgba(0,0,0,.28)}.sidebar.open{transform:translateX(0)}.scrim{display:block;position:absolute;inset:0;border:0;background:rgba(0,0,0,.45);z-index:9}.drawer{top:0}.menu-button{display:grid}}
 @media (min-width:901px){.menu-button{display:grid}.sidebar{display:none}.scrim{display:none}}
+
+.journal-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;color:#69727c;font-size:10px}.journal-toolbar .refresh{border:1px solid var(--border);background:transparent}
