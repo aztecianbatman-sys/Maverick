@@ -138,11 +138,23 @@ The Electron app keeps user-facing application data in its own Electron applicat
 
 API keys are stored by Electron using OS-backed secret storage. They are never written as plain text to the repository.
 
+## Phase 4 — Real-time protection (started)
+
+The first protection slice is now real and deliberately small:
+
+- filesystem events can trigger a protection analysis
+- files receive an explicit Safe / Suspicious / Threat verdict
+- verdicts are recorded in the local security journal
+- the EICAR antivirus test file is a deterministic Threat and can be automatically quarantined
+- ordinary heuristic signals stay alert-only for now; they are not used for destructive containment
+- user-specific Downloads, Desktop, and Documents folders are configured for monitoring when the desktop app opens
+- new-process observation runs in user mode and records process-start events
+
+This is **Phase 4A**, not a finished antivirus product. Persistence and download correlation, richer behavioral correlation, and broader containment are intentionally still ahead.
+
 ## What is next
 
-**Phase 4** is where Maverick starts making security decisions: detection signals, reputation, behavioral correlation, safer containment, and stronger IPC authorization.
-
-That comes only after the journal foundation is stable.
+**Phase 4B** will add stronger behavior correlation and persistence/download signals, but only after this first protection slice is built and tested on Windows.
 
 ## Maverick VI
 
