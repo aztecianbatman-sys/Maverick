@@ -24,9 +24,7 @@ public sealed class ProcessMonitor : BackgroundService
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(2));
 
         while (await timer.WaitForNextTickAsync(stoppingToken))
-        {
             await ObserveSnapshotAsync(stoppingToken);
-        }
     }
 
     private async Task ObserveSnapshotAsync(CancellationToken token)
@@ -45,14 +43,7 @@ public sealed class ProcessMonitor : BackgroundService
                     continue;
 
                 string? executablePath = null;
-                try
-                {
-                    executablePath = process.MainModule?.FileName;
-                }
-                catch
-                {
-                    // Protected processes may deny access.
-                }
+                try { executablePath = process.MainModule?.FileName; } catch { }
 
                 var evidence = new List<string>();
                 var score = 0;
@@ -60,7 +51,6 @@ public sealed class ProcessMonitor : BackgroundService
                 if (!string.IsNullOrWhiteSpace(executablePath))
                 {
                     var lower = executablePath.ToLowerInvariant();
-
                     if (lower.Contains("\\downloads\\"))
                     {
                         evidence.Add("Process image is under a Downloads directory.");
