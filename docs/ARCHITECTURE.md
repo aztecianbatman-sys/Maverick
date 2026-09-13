@@ -147,9 +147,19 @@ It supports:
 When a security-oriented chat question is detected, Maverick asks the Core for today's journal and supplies those local events to the selected BYOK model as evidence. The AI is explicitly instructed not to invent events or verdicts. Ordinary chats do not receive journal data.
 
 ### Phase 4 — Real-time protection
-Planned.
+In progress — **Phase 4A implemented**.
 
-This phase will add actual protection decisions rather than inventory-only observations.
+Phase 4A adds the first actual protection decision path in user mode:
+- filesystem create/change events invoke the protection analyzer
+- deterministic EICAR test-file detection returns Threat / High / Quarantine
+- safe and heuristic suspicious results are journaled
+- automatic containment is restricted to the deterministic EICAR test signature
+- the Electron app configures the current user's Downloads, Desktop, and Documents directories for monitoring
+- a lightweight process-start observer records new processes every two seconds
+
+The heuristic analyzer intentionally uses conservative alert-only behavior at this stage. It does not claim that an executable in a temporary or Downloads folder is malware.
+
+This phase will eventually grow into behavior correlation, persistence and download signals, but those are not enabled yet.
 
 ### Phase 4 — Investigation
 Evidence timelines, threat narratives, AI investigation tools, and richer local journal queries.
