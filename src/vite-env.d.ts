@@ -55,6 +55,7 @@ interface Window {
     cachedModels(provider: string): Promise<MaverickModel[]>;
     testApi(input?: { provider?: string; baseUrl?: string; apiKey?: string }): Promise<{ ok: boolean; modelCount: number }>;
     sendChat(input: { model: string; messages: Array<{ role: string; content: string }> }): Promise<string>;
+    coreRequest(command: string, payload?: Record<string, unknown>): Promise<unknown>;
     openExternal(url: string): Promise<boolean>;
   };
 }
