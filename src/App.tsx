@@ -51,6 +51,8 @@ export default function App() {
   const [models, setModels] = useState<MaverickModel[]>([]);
   const [modelsBusy, setModelsBusy] = useState(false);
   const [settingsSaved, setSettingsSaved] = useState(false);
+  const [securityEvents, setSecurityEvents] = useState<MaverickSecurityEvent[]>([]);
+  const [journalBusy, setJournalBusy] = useState(false);
 
   const activeChat = useMemo(() => store?.chats.find((c) => c.id === store.activeChatId) ?? null, [store]);
 
@@ -75,6 +77,22 @@ export default function App() {
     await window.maverick.saveStore({ chats: next.chats, activeChatId: next.activeChatId, activity: next.activity });
   }
 
+  function isSecurityQuestion(text: string) {
+    return /security|threat|malware|virus|device activity|security activity|recent events?|what happened to my device|what happened today|anything suspicious/i.test(text);
+  }
+
+  async function loadJournal() {
+    setJournalBusy(true);
+    try {
+      const result = await window.maverick.coreRequest("journal.recent", { limit: 200 });
+      setSecurityEvents(Array.isArray(result) ? result as MaverickSecurityEvent[] : []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Maverick Core is unavailable.");
+    } finally {
+      setJournalBusy(false);
+    }
+  }
+
   async function sendMessage() {
     if (!store || !activeChat || busy) return;
     const content = composer.trim();
@@ -94,9 +112,26 @@ export default function App() {
     await persist(stagedStore);
 
     try {
+      let messagesForProvider = nextMessages.map((m) => ({ role: m.role, content: m.content }));
+      if (isSecurityQuestion(content)) {
+        const result = await window.maverick.coreRequest("journal.today", { limit: 200 });
+        const events = Array.isArray(result) ? result as MaverickSecurityEvent[] : [];
+        setSecurityEvents(events);
+        const journalContext = [
+          "Maverick local security journal for today.",
+          "Use this data as evidence. Do not invent events, verdicts, or actions.",
+          "The journal is local device data supplied by the user to the selected BYOK provider.",
+          JSON.stringify(events)
+        ].join("\n");
+        messagesForProvider = [
+          { role: "system", content: journalContext },
+          ...messagesForProvider
+        ];
+      }
+
       const response = await window.maverick.sendChat({
         model: stagedStore.settings.model || modelDraft,
-        messages: nextMessages.map((m) => ({ role: m.role, content: m.content })),
+        messages: messagesForProvider,
       });
       const assistantMessage: MaverickMessage = {
         id: uid(),
@@ -212,7 +247,7 @@ export default function App() {
           ))}
         </div>
         <div className="sidebar-bottom">
-          <button onClick={() => setPanel("activity")}><Activity size={16}/> Activity</button>
+          <button onClick={() => { setPanel("activity"); void loadJournal(); }}><Activity size={16}/> Activity</button>
           <button onClick={() => setPanel("settings")}><Settings size={16}/> API & settings</button>
         </div>
       </aside>
@@ -328,13 +363,22 @@ export default function App() {
 
           {panel === "activity" && (
             <div className="drawer-content">
-              {store.activity?.length ? store.activity.slice(0, 100).map((item) => (
-                <div className="activity-row" key={item.id}><div className="activity-icon"><Activity size={15}/></div><div><strong>{item.type}</strong><span>{item.summary}</span><small>{new Date(item.createdAt).toLocaleString()}</small></div></div>
-              )) : <div className="empty-models"><Clock3 size={18}/><span>No local activity yet.</span></div>}
+              <div className="journal-toolbar"><span>{journalBusy ? "Reading Core journal…" : securityEvents.length + " events loaded"}</span><button className="refresh" onClick={loadJournal} disabled={journalBusy} title="Refresh journal"><RefreshCw size={15} className={journalBusy ? "spin" : ""}/></button></div>
+              {securityEvents.length ? securityEvents.slice(0, 100).map((item) => (
+                <div className="activity-row" key={item.id}>
+                  <div className="activity-icon"><Activity size={15}/></div>
+                  <div>
+                    <strong>{item.type}{item.risk ? " · " + item.risk : ""}</strong>
+                    <span>{item.summary}</span>
+                    <small>{item.process || item.file || item.source || "Maverick Core"} · {new Date(item.createdUtc).toLocaleString()}</small>
+                  </div>
+                </div>
+              )) : <div className="empty-models"><Clock3 size={18}/><span>No Core events recorded yet.</span></div>}
               <button className="danger-button" onClick={async () => {
                 const next = { ...store, activity: [] };
                 await persist(next);
-              }}><Trash2 size={15}/> Delete local activity</button>
+                setSecurityEvents([]);
+              }}><Trash2 size={15}/> Delete AI activity</button>
             </div>
           )}
         </section>
