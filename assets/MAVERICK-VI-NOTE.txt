@@ -1,0 +1,7 @@
+Maverick VI
+
+The repository currently contains the Maverick VI specimen artwork as a visual reference. The sheet is not a machine-readable font file, so Phase 1 does not fabricate a .woff/.ttf from the artwork. The renderer reserves the Maverick VI display font role and can be switched to the final licensed/constructed font binary without changing the UI structure.
+
+Required final font assets:
+- assets/maverick-vi.woff2
+- assets/maverick-vi-mono.woff2
