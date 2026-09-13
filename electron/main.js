@@ -135,7 +135,7 @@ function createWindow() {
     minWidth: 900,
     minHeight: 620,
     backgroundColor: "#0d0f12",
-    icon: path.join(__dirname, "..", "assets", "maverick-icon.png"),
+    icon: path.join(__dirname, "..", "assets", "maverick-icon.svg"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
