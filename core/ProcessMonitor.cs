@@ -6,18 +6,20 @@ namespace Maverick.Core;
 public sealed class ProcessMonitor : BackgroundService
 {
     private readonly Journal journal;
-    private readonly ProtectionAnalyzer analyzer;
     private readonly ConcurrentDictionary<int, byte> seen = new();
 
-    public ProcessMonitor(Journal journal, ProtectionAnalyzer analyzer)
+    public ProcessMonitor(Journal journal)
     {
         this.journal = journal;
-        this.analyzer = analyzer;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await ObserveSnapshotAsync(stoppingToken);
+        foreach (var process in Process.GetProcesses())
+        {
+            try { seen.TryAdd(process.Id, 0); }
+            finally { process.Dispose(); }
+        }
 
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(2));
 
