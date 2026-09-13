@@ -130,6 +130,7 @@ public sealed class PipeServer : BackgroundService
                         "scheduled-tasks",
                         "filesystem-monitor",
                         "journal",
+                        "journal-query",
                         "quarantine-metadata",
                         "inventory-scan"
                     }
@@ -150,6 +151,22 @@ public sealed class PipeServer : BackgroundService
                     root.TryGetProperty("limit", out var limit)
                         ? limit.GetInt32()
                         : 100),
+
+                "journal.today" => await journal.TodayAsync(
+                    root.TryGetProperty("limit", out var todayLimit)
+                        ? todayLimit.GetInt32()
+                        : 200),
+
+                "journal.search" => await journal.SearchAsync(
+                    root.TryGetProperty("type", out var type)
+                        ? type.GetString()
+                        : null,
+                    root.TryGetProperty("risk", out var risk)
+                        ? risk.GetString()
+                        : null,
+                    root.TryGetProperty("limit", out var searchLimit)
+                        ? searchLimit.GetInt32()
+                        : 200),
 
                 "scan" => await scans.ScanAsync(
                     root.GetProperty("path").GetString() ?? "",
