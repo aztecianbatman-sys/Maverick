@@ -31,7 +31,7 @@ Done.
 Done.
 
 ### Phase 2 — Local security foundation
-Implemented as the first native security layer.
+Done.
 
 The native core is a C#/.NET 8 Worker Service that is intended to run as the **Maverick Core** Windows service. It stays in user mode; there is no kernel driver and no arbitrary command execution surface.
 
@@ -130,8 +130,26 @@ The Core service is a foundation for the next phase. Before public deployment, I
 
 ## Next
 
-### Phase 3 — Protection engine
-Detection pipelines, reputation signals, behavior correlation, safe containment, stronger IPC authorization, and Windows security-provider integration work.
+### Phase 3 — Activity Journal
+Implemented.
+
+The Core journal now models security events as structured records with timestamp, event type, process, file, action, result, risk, evidence, source, severity, summary, and raw details.
+
+It supports:
+- recent events
+- today's events
+- filtering by event type and risk
+- SQLite indexing
+- backwards-safe schema upgrades for Phase 2 databases
+- Electron display of Core activity
+- selective AI context loading for security-oriented questions
+
+When a security-oriented chat question is detected, Maverick asks the Core for today's journal and supplies those local events to the selected BYOK model as evidence. The AI is explicitly instructed not to invent events or verdicts. Ordinary chats do not receive journal data.
+
+### Phase 4 — Real-time protection
+Planned.
+
+This phase will add actual protection decisions rather than inventory-only observations.
 
 ### Phase 4 — Investigation
 Evidence timelines, threat narratives, AI investigation tools, and richer local journal queries.
