@@ -39,6 +39,22 @@ interface MaverickMessage {
   createdAt: number;
 }
 
+interface MaverickSecurityEvent {
+  id: string;
+  createdUtc: string;
+  type: string;
+  process: string | null;
+  file: string | null;
+  action: string | null;
+  result: string | null;
+  risk: string | null;
+  severity: string;
+  source: string;
+  summary: string;
+  evidence: string;
+  details: string;
+}
+
 interface MaverickActivity {
   id: string;
   type: string;
