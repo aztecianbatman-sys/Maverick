@@ -16,6 +16,7 @@ public sealed class StartupPersistenceGuard
     public async Task<int> InspectAndRemediateAsync(CancellationToken token)
     {
         var removed = 0;
+
         foreach (var hive in new[] { Registry.LocalMachine })
         {
             foreach (var keyPath in new[]
@@ -46,14 +47,7 @@ public sealed class StartupPersistenceGuard
                         severity: "high",
                         source: "Maverick.Persistence",
                         summary: $"Removed malicious startup entry: {name}",
-                        details: new
-                        {
-                            hive = hive.Name,
-                            keyPath,
-                            name,
-                            target,
-                            verdict
-                        },
+                        details: new { hive = hive.Name, keyPath, name, target, verdict },
                         file: target,
                         action: "remove-startup-entry",
                         result: "removed",
@@ -71,6 +65,7 @@ public sealed class StartupPersistenceGuard
         if (string.IsNullOrWhiteSpace(value)) return null;
 
         var text = value.Trim();
+
         if (text.StartsWith('"'))
         {
             var end = text.IndexOf('"', 1);
@@ -81,5 +76,34 @@ public sealed class StartupPersistenceGuard
         if (exe >= 0) return text[..(exe + 4)];
 
         return File.Exists(text) ? text : null;
+    }
+}
+
+public sealed class PersistenceMonitor : BackgroundService
+{
+    private readonly StartupPersistenceGuard guard;
+
+    public PersistenceMonitor(StartupPersistenceGuard guard)
+    {
+        this.guard = guard;
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        await guard.InspectAndRemediateAsync(stoppingToken);
+
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(15));
+
+        while (await timer.WaitForNextTickAsync(stoppingToken))
+        {
+            try
+            {
+                await guard.InspectAndRemediateAsync(stoppingToken);
+            }
+            catch (Exception)
+            {
+                // Keep the monitor alive; individual persistence problems are journaled by later runs.
+            }
+        }
     }
 }
