@@ -150,7 +150,29 @@ The first protection slice is now real and deliberately small:
 - user-specific Downloads, Desktop, and Documents folders are configured for monitoring when the desktop app opens
 - new-process observation runs in user mode and records process-start events
 
-This is **Phase 4A**, not a finished antivirus product. Persistence and download correlation, richer behavioral correlation, and broader containment are intentionally still ahead.
+Phase 4 now includes the first real containment layer. It is still not a finished antivirus product, but it can now correlate downloaded-file metadata, remediate exact malicious startup entries, react to high-volume destructive file activity, and terminate processes only under strict safety gates.
+
+### Phase 4 — Real-time protection
+
+The protection layer is now active in user mode.
+
+It includes:
+- deterministic EICAR test-file detection
+- filesystem-triggered analysis
+- protected quarantine moves
+- guarded process containment for confirmed threats
+- recent-process correlation for ransomware signals
+- high-volume destructive-activity detection
+- Windows download-origin metadata capture from `Zone.Identifier`
+- targeted startup persistence remediation for exact Threat-verdict files
+
+Maverick is intentionally conservative where the evidence is weak. A suspicious script or executable does not become a Threat just because of its extension or location. Automatic process termination is restricted to protected paths being excluded and strong containment conditions; arbitrary process killing is not exposed.
+
+### Phase 4 limitations
+
+`FileSystemWatcher` is a user-mode notification mechanism and can miss events under heavy load, so its signals are treated as evidence rather than a perfect record. Microsoft documents the possibility of buffer overflow and duplicate/missed filesystem notifications. citeturn287044search0turn287044search5
+
+The current ransomware response therefore uses conservative thresholds and recent-process correlation rather than claiming kernel-level visibility. A future production engine would need stronger telemetry and recovery/snapshot strategy.
 
 ## What is next
 
