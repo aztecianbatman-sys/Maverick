@@ -17,42 +17,61 @@ public sealed class StartupPersistenceGuard
     {
         var removed = 0;
 
-        foreach (var hive in new[] { Registry.LocalMachine, Registry.CurrentUser })
+        var hives = new List<(RegistryKey Hive, string Label)> { (Registry.LocalMachine, "HKLM") };
+        using (var users = Registry.Users)
         {
-            foreach (var keyPath in new[]
+            foreach (var sid in users.GetSubKeyNames().Where(s => s.StartsWith("S-1-5-21-", StringComparison.OrdinalIgnoreCase)))
             {
-                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run",
-                @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Run"
-            })
-            {
-                using var key = hive.OpenSubKey(keyPath, writable: true);
-                if (key is null) continue;
+                var userHive = users.OpenSubKey(sid, writable: true);
+                if (userHive is not null)
+                    hives.Add((userHive, $@"HKEY_USERS\\{sid}"));
+            }
 
-                foreach (var name in key.GetValueNames())
+            foreach (var (hive, label) in hives)
+            {
+                try
                 {
-                    token.ThrowIfCancellationRequested();
-                    var value = key.GetValue(name)?.ToString();
-                    var target = ExtractLikelyPath(value);
-                    if (target is null || !File.Exists(target)) continue;
+                    foreach (var keyPath in new[]
+                    {
+                        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run",
+                        @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Run"
+                    })
+                    {
+                        using var key = hive.OpenSubKey(keyPath, writable: true);
+                        if (key is null) continue;
 
-                    var verdict = await analyzer.AnalyzeFileAsync(target);
-                    if (verdict.Verdict != "Threat" || verdict.Action != "Quarantine")
-                        continue;
+                        foreach (var name in key.GetValueNames())
+                        {
+                            token.ThrowIfCancellationRequested();
+                            var value = key.GetValue(name)?.ToString();
+                            var target = ExtractLikelyPath(value);
+                            if (target is null || !File.Exists(target)) continue;
 
-                    key.DeleteValue(name, throwOnMissingValue: false);
-                    removed++;
+                            var verdict = await analyzer.AnalyzeFileAsync(target);
+                            if (verdict.Verdict != "Threat" || verdict.Action != "Quarantine")
+                                continue;
 
-                    await journal.RecordAsync(
-                        type: "persistence_remediation",
-                        severity: "high",
-                        source: "Maverick.Persistence",
-                        summary: $"Removed malicious startup entry: {name}",
-                        details: new { hive = hive.Name, keyPath, name, target, verdict },
-                        file: target,
-                        action: "remove-startup-entry",
-                        result: "removed",
-                        risk: verdict.Risk,
-                        evidence: verdict.Evidence);
+                            key.DeleteValue(name, throwOnMissingValue: false);
+                            removed++;
+
+                            await journal.RecordAsync(
+                                type: "persistence_remediation",
+                                severity: "high",
+                                source: "Maverick.Persistence",
+                                summary: $"Removed malicious startup entry: {name}",
+                                details: new { hive = label, keyPath, name, target, verdict },
+                                file: target,
+                                action: "remove-startup-entry",
+                                result: "removed",
+                                risk: verdict.Risk,
+                                evidence: verdict.Evidence);
+                        }
+                    }
+                }
+                finally
+                {
+                    if (!ReferenceEquals(hive, Registry.LocalMachine))
+                        hive.Dispose();
                 }
             }
         }
