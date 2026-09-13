@@ -9,5 +9,6 @@ contextBridge.exposeInMainWorld("maverick", {
   testApi: (input) => ipcRenderer.invoke("api:test", input),
   sendChat: (input) => ipcRenderer.invoke("chat:send", input),
   coreRequest: (command, payload) => ipcRenderer.invoke("core:request", command, payload),
+  configureDefaultMonitoring: () => ipcRenderer.invoke("core:configure-default-monitoring"),
   openExternal: (url) => ipcRenderer.invoke("shell:open-external", url),
 });
