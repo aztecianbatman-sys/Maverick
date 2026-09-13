@@ -75,11 +75,15 @@ public sealed class ScanService
         var result = await files.InspectAsync(path, true);
 
         await journal.RecordAsync(
-            "file_inspection",
-            "info",
-            "Maverick.Core",
-            $"Inspected {Path.GetFileName(path)}",
-            result);
+            type: "file_inspection",
+            severity: "info",
+            source: "Maverick.Core",
+            summary: $"Inspected {Path.GetFileName(path)}",
+            details: result,
+            file: path,
+            action: "inspect",
+            result: "observed",
+            risk: "unknown");
 
         return new
         {
