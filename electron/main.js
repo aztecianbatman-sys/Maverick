@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain, safeStorage, shell } = require("electron");
 const path = require("node:path");
+const os = require("node:os");
 const fs = require("node:fs/promises");
 const { request: coreRequest } = require("./core-client");
 
@@ -229,6 +230,13 @@ app.whenReady().then(async () => {
 
   ipcMain.handle("core:request", async (_, command, payload) => {
     return coreRequest(String(command || ""), payload && typeof payload === "object" ? payload : {});
+  });
+
+  ipcMain.handle("core:configure-default-monitoring", async () => {
+    const home = os.homedir();
+    const requested = ["Downloads", "Desktop", "Documents"]
+      .map((name) => path.join(home, name));
+    return coreRequest("monitor.configure", { paths: requested });
   });
 
   ipcMain.handle("shell:open-external", async (_, url) => {
