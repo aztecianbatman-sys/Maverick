@@ -55,10 +55,6 @@ export default function App() {
   const activeChat = useMemo(() => store?.chats.find((c) => c.id === store.activeChatId) ?? null, [store]);
 
   useEffect(() => {
-    Window.__maverickInit;
-  }, []);
-
-  useEffect(() => {
     window.maverick.getStore().then((loaded) => {
       let normalized = loaded;
       if (loaded.chats.length === 0) {
@@ -159,12 +155,13 @@ export default function App() {
   async function saveSettings() {
     setError("");
     try {
-      const saved = await window.maverick.saveSettings({
+      const settingsInput: { provider: string; baseUrl: string; model: string; apiKey?: string } = {
         provider: providerDraft,
         baseUrl: baseUrlDraft,
         model: modelDraft,
-        apiKey: apiKeyDraft || undefined,
-      });
+      };
+      if (apiKeyDraft.trim()) settingsInput.apiKey = apiKeyDraft.trim();
+      const saved = await window.maverick.saveSettings(settingsInput);
       if (store) setStore({ ...store, settings: saved });
       setApiKeyDraft("");
       setSettingsSaved(true);
@@ -192,6 +189,7 @@ export default function App() {
     return <div className="boot">Starting Maverick…</div>;
   }
 
+  const freeCount = models.filter((model) => model.free).length;
   const filteredModels = models
     .filter((model) => model.name.toLowerCase().includes(modelSearch.toLowerCase()) || model.id.toLowerCase().includes(modelSearch.toLowerCase()))
     .filter((model) => modelFilter === "all" || model.free);
@@ -312,7 +310,7 @@ export default function App() {
               <div className="model-toolbar">
                 <div className="search"><Search size={15}/><input placeholder="Search models" value={modelSearch} onChange={(e) => setModelSearch(e.target.value)} /></div>
                 <button className={modelFilter === "all" ? "filter active" : "filter"} onClick={() => setModelFilter("all")}>All</button>
-                <button className={modelFilter === "free" ? "filter active free" : "filter"} onClick={() => setModelFilter("free")}>Free</button>
+                <button className={modelFilter === "free" ? "filter active free" : "filter"} onClick={() => setModelFilter("free")}>Free {freeCount ? `(${freeCount})` : ""}</button>
                 <button className="refresh" onClick={loadModels} disabled={modelsBusy} title="Refresh models"><RefreshCw size={15} className={modelsBusy ? "spin" : ""}/></button>
               </div>
               {!store.settings.hasApiKey && <div className="empty-models"><Sparkles size={18}/><span>Add an API key in settings to browse provider models.</span><button onClick={() => setPanel("settings")}>Set up key</button></div>}
