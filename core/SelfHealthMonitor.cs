@@ -5,15 +5,18 @@ public sealed class SelfHealthMonitor : BackgroundService
     private readonly IntegrityManifest integrity;
     private readonly Journal journal;
     private readonly CorePaths paths;
+    private readonly ServiceConfigurationMonitor serviceConfig;
 
     public SelfHealthMonitor(
         IntegrityManifest integrity,
         Journal journal,
-        CorePaths paths)
+        CorePaths paths,
+        ServiceConfigurationMonitor serviceConfig)
     {
         this.integrity = integrity;
         this.journal = journal;
         this.paths = paths;
+        this.serviceConfig = serviceConfig;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -45,9 +48,10 @@ public sealed class SelfHealthMonitor : BackgroundService
                 risk: "high");
         }
 
+        var serviceOkay = await serviceConfig.VerifyAsync(token);
         var changed = await integrity.VerifyAsync(token);
 
-        if (changed.Count == 0)
+        if (serviceOkay && changed.Count == 0)
         {
             await journal.RecordAsync(
                 "self_health",
