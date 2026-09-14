@@ -8,6 +8,7 @@ public sealed class CorePaths
     public string DatabasePath => Path.Combine(RootDirectory, "maverick.db");
     public string QuarantineDirectory => Path.Combine(RootDirectory, "Quarantine");
     public string ConfigPath => Path.Combine(RootDirectory, "config.json");
+    public string IntegrityManifestPath => Path.Combine(RootDirectory, "integrity.json");
 
     public CorePaths()
     {
