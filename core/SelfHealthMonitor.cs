@@ -4,11 +4,16 @@ public sealed class SelfHealthMonitor : BackgroundService
 {
     private readonly IntegrityManifest integrity;
     private readonly Journal journal;
+    private readonly CorePaths paths;
 
-    public SelfHealthMonitor(IntegrityManifest integrity, Journal journal)
+    public SelfHealthMonitor(
+        IntegrityManifest integrity,
+        Journal journal,
+        CorePaths paths)
     {
         this.integrity = integrity;
         this.journal = journal;
+        this.paths = paths;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -23,6 +28,23 @@ public sealed class SelfHealthMonitor : BackgroundService
 
     private async Task CheckAsync(CancellationToken token)
     {
+        try
+        {
+            ServiceSecurity.ProtectLocalStorage(paths);
+        }
+        catch (Exception ex)
+        {
+            await journal.RecordAsync(
+                "tamper_detection",
+                "high",
+                "Maverick.Integrity",
+                "Maverick storage ACL verification failed.",
+                new { error = ex.Message },
+                action: "verify-storage-acl",
+                result: "error",
+                risk: "high");
+        }
+
         var changed = await integrity.VerifyAsync(token);
 
         if (changed.Count == 0)
