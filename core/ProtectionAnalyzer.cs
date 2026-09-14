@@ -24,14 +24,15 @@ public sealed class ProtectionAnalyzer
             ".exe", ".dll", ".scr", ".com", ".msi"
         };
 
-    private const string EicarMarker =
-        @"X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*";
-
     private readonly ThreatIntelService threatIntel;
+    private readonly AmsiScanner amsi;
 
-    public ProtectionAnalyzer(ThreatIntelService threatIntel)
+    public ProtectionAnalyzer(
+        ThreatIntelService threatIntel,
+        AmsiScanner amsi)
     {
         this.threatIntel = threatIntel;
+        this.amsi = amsi;
     }
 
     public async Task<ProtectionVerdict> AnalyzeFileAsync(
@@ -84,42 +85,71 @@ public sealed class ProtectionAnalyzer
             score += 10;
         }
 
-        if (extension.Equals(".ps1", StringComparison.OrdinalIgnoreCase))
+        if (extension is ".ps1" or ".psm1")
             signals.Add("powershell");
 
         if (extension is ".bat" or ".cmd")
             signals.Add("windows-command-shell");
 
-        if (extension is ".vbs" or ".vbe")
+        if (extension is ".vbs" or ".vbe" or ".wsf" or ".wsh" or ".hta")
             signals.Add("visual-basic-script");
 
-        var sha256 = await threatIntel.ComputeAndLookupAsync(
+        try
+        {
+            var amsiDetected = await amsi.ScanFileAsync(
+                fullPath,
+                CancellationToken.None);
+
+            if (amsiDetected == true)
+            {
+                evidence.Add("AMSI reported malicious script content.");
+
+                return new ProtectionVerdict(
+                    "Threat",
+                    "High",
+                    100,
+                    evidence,
+                    "Quarantine");
+            }
+
+            if (amsiDetected == false)
+                evidence.Add("AMSI did not report malicious script content.");
+        }
+        catch
+        {
+            // AMSI is an enrichment source; failure is never treated as safe.
+        }
+
+        var intel = await threatIntel.ComputeAndLookupAsync(
             fullPath,
             signals,
             CancellationToken.None);
 
-        if (sha256.HashMatch is not null)
+        if (intel.HashMatch is not null)
         {
             evidence.Add("Exact SHA-256 matched the local known-bad catalog.");
-            evidence.Add($"Known-bad entry: {sha256.HashMatch.Name}");
+            evidence.Add($"Known-bad entry: {intel.HashMatch.Name}");
 
             return new ProtectionVerdict(
                 "Threat",
                 "High",
                 100,
                 evidence,
-                sha256.HashMatch.Action.Equals(
+                intel.HashMatch.Action.Equals(
                     "quarantine",
                     StringComparison.OrdinalIgnoreCase)
                     ? "Quarantine"
                     : "Alert");
         }
 
-        foreach (var family in sha256.FamilyMatches)
-            evidence.Add($"Behavior affinity: {family} (not family attribution).");
+        foreach (var family in intel.FamilyMatches)
+            evidence.Add(
+                $"Behavior affinity: {family} (not family attribution).");
 
-        if (sha256.FamilyMatches.Count > 0)
-            score += Math.Min(20, sha256.FamilyMatches.Count * 8);
+        if (intel.FamilyMatches.Count > 0)
+            score += Math.Min(
+                20,
+                intel.FamilyMatches.Count * 8);
 
         var risk = score >= 25 ? "Medium" : "Low";
         var verdict = score >= 25 ? "Suspicious" : "Safe";
@@ -131,7 +161,4 @@ public sealed class ProtectionAnalyzer
             evidence,
             "Alert");
     }
-
-    internal static bool IsEicarText(string text) =>
-        string.Equals(text.TrimEnd('\r', '\n'), EicarMarker, StringComparison.Ordinal);
 }
