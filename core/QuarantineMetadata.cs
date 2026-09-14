@@ -59,7 +59,7 @@ public sealed class QuarantineMetadata
             id,
             originalPath = info.FullName,
             sha256 = sha,
-            sizeBytes = info.Exists ? info.Length : null,
+            sizeBytes = info.Exists ? (long?)info.Length : null,
             quarantineDirectory = paths.QuarantineDirectory,
             status = "metadata-only"
         };
