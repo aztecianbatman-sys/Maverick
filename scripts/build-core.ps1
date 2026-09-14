@@ -17,7 +17,7 @@ if (Test-Path $output) {
     Remove-Item $output -Recurse -Force
 }
 
-dotnet restore $core
+dotnet restore $core --ignore-failed-sources
 if ($LASTEXITCODE -ne 0) { throw "dotnet restore failed." }
 
 dotnet publish $core --configuration Release --self-contained false --output $output
