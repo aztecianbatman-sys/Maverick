@@ -100,6 +100,16 @@ monitor.configure
 
 The desktop process can call these through `electron/core-client.js` and the preload bridge. The AI does not receive direct native execution access.
 
+### Threat intelligence
+
+Phase 4 also includes a local, metadata-only intelligence layer:
+- exact SHA-256 lookup for deterministic known-bad entries
+- a curated public-knowledge catalog of common Windows malware families and ATT&CK techniques
+- AMSI scanning for script-capable files
+- validated local hash-feed import
+
+The catalog is enrichment data, not a family classifier. Maverick only uses exact known-bad entries or strong, separately-defined signals for automatic containment.
+
 ## Local storage
 
 The Core service owns:
