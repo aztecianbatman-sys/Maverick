@@ -186,6 +186,23 @@ Maverick is intentionally conservative where the evidence is weak. A suspicious 
 
 The current ransomware response therefore uses conservative thresholds and recent-process correlation rather than claiming kernel-level visibility. A future production engine would need stronger telemetry and recovery/snapshot strategy.
 
+### Phase 5 — Maverick self-defense
+
+The Core now has a first self-defense layer:
+
+- Core is designed to run as **LocalService** instead of LocalSystem.
+- The installer assigns a **restricted service SID**.
+- Core binaries are installed under **Program Files\\Maverick\\Core** rather than a user-writable project directory.
+- Core data and quarantine live under **ProgramData\\Maverick** with explicit ACLs.
+- An integrity manifest records SHA-256 values for installed Core files.
+- The Core checks its integrity periodically and records tamper events when a file changes or the manifest disappears.
+- The desktop app polls the Core and shows whether the Core is online or offline.
+- Windows Authenticode verification is provided as a release-time helper; production signing still requires a real code-signing certificate.
+
+Windows services support per-service security configuration, including service SIDs and restricted service SIDs, which is why Maverick uses a dedicated service identity rather than giving the Core unrestricted access. citeturn962252search7turn962252search8
+
+Maverick does **not** claim that this makes it immune to a compromised Windows kernel or administrator-level attacker. It is defense in depth.
+
 ## What is next
 
 **Phase 4B** will add stronger behavior correlation and persistence/download signals, but only after this first protection slice is built and tested on Windows.
