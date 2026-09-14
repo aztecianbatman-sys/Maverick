@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using System.Text;
 
 namespace Maverick.Core;
@@ -26,9 +25,18 @@ public sealed class ProtectionAnalyzer
         };
 
     private const string EicarMarker =
-        "X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*";
+        @"X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*";
 
-    public async Task<ProtectionVerdict> AnalyzeFileAsync(string path)
+    private readonly ThreatIntelService threatIntel;
+
+    public ProtectionAnalyzer(ThreatIntelService threatIntel)
+    {
+        this.threatIntel = threatIntel;
+    }
+
+    public async Task<ProtectionVerdict> AnalyzeFileAsync(
+        string path,
+        IEnumerable<string>? observedSignals = null)
     {
         if (!File.Exists(path))
         {
@@ -43,16 +51,9 @@ public sealed class ProtectionAnalyzer
         var evidence = new List<string>();
         var score = 0;
 
-        var eicar = await IsEicarTestFileAsync(fullPath);
-        if (eicar)
-        {
-            return new ProtectionVerdict(
-                "Threat",
-                "High",
-                100,
-                new[] { "EICAR antivirus test signature matched." },
-                "Quarantine");
-        }
+        var signals = new HashSet<string>(
+            observedSignals ?? Enumerable.Empty<string>(),
+            StringComparer.OrdinalIgnoreCase);
 
         if (ExecutableExtensions.Contains(extension))
         {
@@ -67,9 +68,11 @@ public sealed class ProtectionAnalyzer
         }
 
         var lower = fullPath.ToLowerInvariant();
+
         if (lower.Contains("\\downloads\\"))
         {
             evidence.Add("File is under a Downloads directory.");
+            signals.Add("downloaded-file");
             score += 5;
         }
 
@@ -77,11 +80,49 @@ public sealed class ProtectionAnalyzer
             lower.Contains("\\windows\\temp\\"))
         {
             evidence.Add("File is under a temporary directory.");
+            signals.Add("temporary-location");
             score += 10;
         }
 
-        var risk = score >= 20 ? "Medium" : "Low";
-        var verdict = score >= 20 ? "Suspicious" : "Safe";
+        if (extension.Equals(".ps1", StringComparison.OrdinalIgnoreCase))
+            signals.Add("powershell");
+
+        if (extension is ".bat" or ".cmd")
+            signals.Add("windows-command-shell");
+
+        if (extension is ".vbs" or ".vbe")
+            signals.Add("visual-basic-script");
+
+        var sha256 = await threatIntel.ComputeAndLookupAsync(
+            fullPath,
+            signals,
+            CancellationToken.None);
+
+        if (sha256.HashMatch is not null)
+        {
+            evidence.Add("Exact SHA-256 matched the local known-bad catalog.");
+            evidence.Add($"Known-bad entry: {sha256.HashMatch.Name}");
+
+            return new ProtectionVerdict(
+                "Threat",
+                "High",
+                100,
+                evidence,
+                sha256.HashMatch.Action.Equals(
+                    "quarantine",
+                    StringComparison.OrdinalIgnoreCase)
+                    ? "Quarantine"
+                    : "Alert");
+        }
+
+        foreach (var family in sha256.FamilyMatches)
+            evidence.Add($"Behavior affinity: {family} (not family attribution).");
+
+        if (sha256.FamilyMatches.Count > 0)
+            score += Math.Min(20, sha256.FamilyMatches.Count * 8);
+
+        var risk = score >= 25 ? "Medium" : "Low";
+        var verdict = score >= 25 ? "Suspicious" : "Safe";
 
         return new ProtectionVerdict(
             verdict,
@@ -91,17 +132,6 @@ public sealed class ProtectionAnalyzer
             "Alert");
     }
 
-    private static async Task<bool> IsEicarTestFileAsync(string path)
-    {
-        try
-        {
-            var bytes = await File.ReadAllBytesAsync(path);
-            var text = Encoding.ASCII.GetString(bytes).TrimEnd('\r', '\n');
-            return string.Equals(text, EicarMarker, StringComparison.Ordinal);
-        }
-        catch
-        {
-            return false;
-        }
-    }
+    internal static bool IsEicarText(string text) =>
+        string.Equals(text.TrimEnd('\r', '\n'), EicarMarker, StringComparison.Ordinal);
 }
