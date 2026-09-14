@@ -29,7 +29,7 @@ public sealed class ScanService
                 analysis is not null ? "info" : "warning",
                 "Maverick.Core",
                 $"File scan completed for {root}",
-                analysis,
+                analysis ?? new { }
                 file: root,
                 action: "scan",
                 result: "completed",
