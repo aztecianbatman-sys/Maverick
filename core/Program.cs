@@ -30,6 +30,7 @@ public static class Program
         builder.Services.AddSingleton<RansomwareGuard>();
         builder.Services.AddSingleton<StartupPersistenceGuard>();
         builder.Services.AddSingleton<ScanService>();
+        builder.Services.AddSingleton<ServiceConfigurationMonitor>();
 
         builder.Services.AddSingleton<SecurityMonitor>();
         builder.Services.AddHostedService(sp =>
