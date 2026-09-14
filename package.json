@@ -1,6 +1,6 @@
 {
   "name": "maverick",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "description": "Maverick — your friendly friend for your device.",
   "main": "electron/main.js",
@@ -11,7 +11,8 @@
     "build:app": "npm run build && electron-builder",
     "core:build": "powershell -ExecutionPolicy Bypass -File scripts/build-core.ps1",
     "core:install": "powershell -ExecutionPolicy Bypass -File scripts/install-core.ps1",
-    "core:uninstall": "powershell -ExecutionPolicy Bypass -File scripts/uninstall-core.ps1"
+    "core:uninstall": "powershell -ExecutionPolicy Bypass -File scripts/uninstall-core.ps1",
+    "verify:signatures": "powershell -ExecutionPolicy Bypass -File scripts/verify-signatures.ps1"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
