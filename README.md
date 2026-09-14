@@ -216,3 +216,7 @@ Maverick VI is the project's intended display typeface. The specimen artwork is 
 Build one phase at a time.
 
 No pretend scans. No fake detections. No invented security claims. If something is experimental, incomplete, or inventory-only, Maverick says so.
+
+## Developer test trigger
+
+For local UI testing, entering **MAVERICK-LUNAR-TEST** anywhere in the app opens the red **HACKERS NOT ALLOWED** developer screen and plays its TTS message. It is a test-only UI path and does not represent a real compromise or detection.
