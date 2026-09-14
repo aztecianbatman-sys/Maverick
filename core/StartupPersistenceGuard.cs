@@ -47,7 +47,7 @@ public sealed class StartupPersistenceGuard
                             var target = ExtractLikelyPath(value);
                             if (target is null || !File.Exists(target)) continue;
 
-                            var verdict = await analyzer.AnalyzeFileAsync(target);
+                            var verdict = await analyzer.AnalyzeFileAsync(target, new[] { "run-key-persistence" });
                             if (verdict.Verdict != "Threat" || verdict.Action != "Quarantine")
                                 continue;
 
