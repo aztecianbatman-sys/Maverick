@@ -24,7 +24,7 @@ public static class ServiceSecurity
         acl.SetAccessRuleProtection(true, false);
 
         acl.SetAccessRule(new FileSystemAccessRule(
-            new SecurityIdentifier(WellKnownSidType.SystemSid, null),
+            new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null),
             FileSystemRights.FullControl,
             InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
             PropagationFlags.None,
