@@ -20,6 +20,44 @@ public sealed class KnownBadHashStore
     public bool TryGet(string sha256, out KnownBadHash? match) =>
         hashes.TryGetValue(sha256, out match);
 
+    public async Task<int> ImportAsync(string jsonPath)
+    {
+        if (!File.Exists(jsonPath))
+            throw new FileNotFoundException("Threat hash feed not found.", jsonPath);
+
+        var json = await File.ReadAllTextAsync(jsonPath);
+        var entries = JsonSerializer.Deserialize<List<KnownBadHash>>(json)
+            ?? throw new InvalidOperationException("Threat hash feed is not a JSON array.");
+
+        var normalized = entries
+            .Where(x => !string.IsNullOrWhiteSpace(x.Sha256))
+            .Select(x => x with { Sha256 = x.Sha256.Trim().ToLowerInvariant() })
+            .Where(x => x.Sha256.Length == 64 && x.Sha256.All(Uri.IsHexDigit))
+            .ToList();
+
+        foreach (var entry in normalized)
+            hashes[entry.Sha256] = entry;
+
+        var path = Path.Combine(paths.RootDirectory, "known-bad-hashes.json");
+        await File.WriteAllTextAsync(
+            path,
+            JsonSerializer.Serialize(
+                hashes.Values.OrderBy(x => x.Sha256),
+                new JsonSerializerOptions { WriteIndented = true }));
+
+        await journal.RecordAsync(
+            "threat_intel_import",
+            "info",
+            "Maverick.ThreatIntel",
+            $"Imported {normalized.Count} validated hash entries.",
+            new { source = jsonPath, imported = normalized.Count },
+            action: "import-hash-catalog",
+            result: "completed",
+            risk: "info");
+
+        return normalized.Count;
+    }
+
     private async Task LoadAsync()
     {
         var path = Path.Combine(paths.RootDirectory, "known-bad-hashes.json");
