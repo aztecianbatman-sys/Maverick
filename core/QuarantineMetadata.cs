@@ -64,4 +64,54 @@ public sealed class QuarantineMetadata
             status = "metadata-only"
         };
     }
+
+    public Task<object> ListAsync()
+    {
+        var items = Directory.EnumerateFiles(
+                paths.QuarantineDirectory,
+                "*",
+                SearchOption.TopDirectoryOnly)
+            .Select(path => new FileInfo(path))
+            .OrderByDescending(info => info.CreationTimeUtc)
+            .Select(info => new
+            {
+                path = info.FullName,
+                name = info.Name,
+                sizeBytes = info.Length,
+                createdUtc = info.CreationTimeUtc
+            })
+            .ToList();
+
+        return Task.FromResult<object>(items);
+    }
+
+    public async Task<object> DeleteQuarantinedAsync(string path)
+    {
+        var quarantineRoot = Path.GetFullPath(paths.QuarantineDirectory)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            + Path.DirectorySeparatorChar;
+        var target = Path.GetFullPath(path);
+
+        if (!target.StartsWith(quarantineRoot, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Only files inside Maverick quarantine may be deleted.");
+
+        if (!File.Exists(target))
+            throw new FileNotFoundException("Quarantine file not found.", target);
+
+        File.SetAttributes(target, File.GetAttributes(target) & ~FileAttributes.ReadOnly);
+        File.Delete(target);
+
+        await journal.RecordAsync(
+            "quarantine_delete",
+            "high",
+            "Maverick.Core",
+            $"Deleted quarantined item {Path.GetFileName(target)}",
+            new { quarantinePath = target },
+            file: target,
+            action: "delete-quarantined",
+            result: "deleted",
+            risk: "high");
+
+        return new { quarantinePath = target, status = "deleted" };
+    }
 }
