@@ -186,6 +186,11 @@ public sealed class PipeServer : BackgroundService
                 "quarantine.register" => await quarantine.RegisterAsync(
                     root.GetProperty("path").GetString() ?? ""),
 
+                "quarantine.list" => await quarantine.ListAsync(),
+
+                "quarantine.delete" => await quarantine.DeleteQuarantinedAsync(
+                    root.GetProperty("path").GetString() ?? ""),
+
                 "monitor.configure" => await ConfigureMonitorAsync(root),
 
                 "protection.status" => new
