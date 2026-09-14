@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 
 type Panel = "none" | "settings" | "models" | "activity";
+const HACKER_CODE = "MAVERICK-LUNAR-TEST";
 
 const uid = () => crypto.randomUUID();
 
@@ -51,11 +52,47 @@ export default function App() {
   const [models, setModels] = useState<MaverickModel[]>([]);
   const [modelsBusy, setModelsBusy] = useState(false);
   const [settingsSaved, setSettingsSaved] = useState(false);
+
+  function openHackerScreen() {
+    setHackerScreen(true);
+    try {
+      const speech = new SpeechSynthesisUtterance("Hackers not allowed. Maverick has opened the developer security test screen.");
+      speech.rate = 0.92;
+      speech.pitch = 0.72;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(speech);
+    } catch {
+      // Text screen remains usable when speech synthesis is unavailable.
+    }
+  }
+
+  function closeHackerScreen() {
+    setHackerScreen(false);
+    try { window.speechSynthesis.cancel(); } catch {}
+  }
   const [securityEvents, setSecurityEvents] = useState<MaverickSecurityEvent[]>([]);
   const [journalBusy, setJournalBusy] = useState(false);
   const [coreState, setCoreState] = useState<"checking" | "online" | "offline">("checking");
+  const [hackerScreen, setHackerScreen] = useState(false);
 
   const activeChat = useMemo(() => store?.chats.find((c) => c.id === store.activeChatId) ?? null, [store]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.tagName === "INPUT" || target?.tagName === "TEXTAREA") return;
+      const key = event.key.length === 1 ? event.key.toUpperCase() : "";
+      if (!key) return;
+      const current = ((window as typeof window & { __maverickCode?: string }).__maverickCode || "") + key;
+      (window as typeof window & { __maverickCode?: string }).__maverickCode = current.slice(-HACKER_CODE.length);
+      if ((window as typeof window & { __maverickCode?: string }).__maverickCode === HACKER_CODE) {
+        openHackerScreen();
+        (window as typeof window & { __maverickCode?: string }).__maverickCode = "";
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -114,6 +151,11 @@ export default function App() {
     if (!store || !activeChat || busy) return;
     const content = composer.trim();
     if (!content) return;
+    if (content.toUpperCase().includes(HACKER_CODE)) {
+      setComposer("");
+      openHackerScreen();
+      return;
+    }
 
     setError("");
     setBusy(true);
@@ -235,6 +277,26 @@ export default function App() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Connection failed.");
     }
+  }
+
+  if (hackerScreen) {
+    return (
+      <div className="hacker-screen">
+        <div className="hacker-symbol" aria-hidden="true">⚠</div>
+        <div className="hacker-title">HACKERS NOT ALLOWED</div>
+        <div className="hacker-rule" />
+        <p className="hacker-copy">
+          Maverick entered its developer security lock screen because the test trigger was detected.
+          This is a test flow only. It does not mean a real attacker was identified.
+        </p>
+        <div className="hacker-reason">
+          <span>DEVELOPER TRIGGER</span>
+          <strong>{HACKER_CODE}</strong>
+          <small>No system files were changed.</small>
+        </div>
+        <button className="hacker-button" onClick={closeHackerScreen}>Return to Maverick</button>
+      </div>
+    );
   }
 
   if (!store) {
