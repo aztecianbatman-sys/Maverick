@@ -19,6 +19,7 @@ public static class Program
         builder.Services.AddSingleton<ThreatKnowledgeCatalog>();
         builder.Services.AddSingleton<KnownBadHashStore>();
         builder.Services.AddSingleton<ThreatIntelService>();
+        builder.Services.AddSingleton<AmsiScanner>();
         builder.Services.AddSingleton<ProtectionAnalyzer>();
         builder.Services.AddSingleton<QuarantineService>();
         builder.Services.AddSingleton<ProtectionService>();
