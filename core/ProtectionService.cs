@@ -27,8 +27,12 @@ public sealed class ProtectionService
         cancellationToken.ThrowIfCancellationRequested();
 
         var fullPath = Path.GetFullPath(path);
-        var verdict = await analyzer.AnalyzeFileAsync(fullPath);
-        var origin = await origins.ReadAsync(fullPath);
+        var observedSignals = new List<string>();
+        var preliminaryOrigin = await origins.ReadAsync(fullPath);
+        if (preliminaryOrigin is not null) observedSignals.Add("downloaded-file");
+        if (!string.IsNullOrWhiteSpace(preliminaryOrigin?.HostUrl)) observedSignals.Add("download-origin");
+        var verdict = await analyzer.AnalyzeFileAsync(fullPath, observedSignals);
+        var origin = preliminaryOrigin;
 
         var evidence = verdict.Evidence.ToList();
 
