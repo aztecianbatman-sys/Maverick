@@ -138,6 +138,21 @@ Phase 2 intentionally avoids behavior-based malware verdicts, kernel callbacks, 
 
 The Core service is a foundation for the next phase. Before public deployment, IPC authorization should be tightened from the current authenticated-user ACL to the intended interactive-user identity and the protocol should gain request authentication/replay protection.
 
+### Phase 5 — Maverick self-defense
+Implemented as the first hardening layer.
+
+- LocalService execution instead of LocalSystem
+- restricted service SID
+- protected Program Files installation target
+- protected ProgramData data/quarantine ACLs
+- immutable-from-service integrity manifest
+- periodic Core file integrity verification
+- tamper events in the local journal
+- desktop Core heartbeat/status indicator
+- release-time Authenticode verification helper
+
+The integrity manifest is generated from the installed Core files and copied into ProgramData with read-only access for the Core service. The Core can detect modifications, deletions, or a missing manifest, but this is not a cryptographic root of trust against an attacker who already controls administrators or the kernel.
+
 ## Next
 
 ### Phase 3 — Activity Journal
