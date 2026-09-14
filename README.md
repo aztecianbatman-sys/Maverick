@@ -70,6 +70,18 @@ The Core can return recent events, today’s events, and filtered searches. Exis
 
 Maverick AI can also use today’s journal for security-oriented questions such as “what happened today?” The local events are retrieved from Maverick Core first and then supplied to the user’s selected BYOK model as evidence. Normal conversations do not receive journal data.
 
+### Threat intelligence and known-malware knowledge
+
+Maverick now has two complementary intelligence layers.
+
+The **fast path** is an exact SHA-256 catalog stored locally at `%ProgramData%\\Maverick\\known-bad-hashes.json`. Matching an exact entry can immediately produce a Threat verdict. The repository seeds this with the EICAR test file only; real malware samples are not bundled.
+
+The **behavior knowledge layer** contains public, curated ATT&CK mappings for families including WannaCry, NotPetya, Emotet, TrickBot, LockBit 2.0/3.0, JCry, Conti, Ragnar Locker, and LokiBot. These profiles are used to recognize combinations of behaviors and enrich evidence; a behavior resemblance is never treated as proof of a family identity. MITRE's software entries document these malware families and their reported techniques. citeturn349768search5turn349768search0turn602021search0turn602021search1turn349768search2turn349768search3turn602021search4turn349768search6turn349768search9
+
+For Windows script files, Maverick also uses **AMSI** as an additional detection source. Windows Defender itself uses layered client-side ML, behavior monitoring, heuristics, AMSI, memory scanning, and reputation rather than relying on a static family list alone. citeturn246404search1turn246404search3
+
+A validated local hash feed can be imported through the constrained Core command `threatintel.import`. The feed contains metadata only; Maverick does not need to ship or execute malware samples to use exact-hash intelligence.
+
 ## Building
 
 For the Electron app:
