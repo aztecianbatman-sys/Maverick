@@ -141,6 +141,7 @@ public sealed class PipeServer : BackgroundService
                         "amsi-script-scanning",
                         "journal",
                         "journal-query",
+                        "self-defense",
                         "quarantine-metadata",
                         "inventory-scan"
                     }
