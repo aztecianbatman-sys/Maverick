@@ -20,7 +20,18 @@ public sealed class IntegrityManifest
     {
         var manifestPath = paths.IntegrityManifestPath;
         if (!File.Exists(manifestPath))
-            return Array.Empty<string>();
+        {
+            await journal.RecordAsync(
+                "tamper_detection",
+                "high",
+                "Maverick.Integrity",
+                "Maverick integrity manifest is missing.",
+                new { manifestPath },
+                action: "verify-integrity",
+                result: "missing",
+                risk: "high");
+            return new[] { manifestPath };
+        }
 
         List<IntegrityEntry>? entries;
 
