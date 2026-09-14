@@ -10,7 +10,7 @@ There are two planned desktop experiences:
 
 ## Current state
 
-The project has finished the first three development phases.
+The project is now at the Base Maverick 0.5.2 development build.
 
 ### Phase 1 — AI shell
 
