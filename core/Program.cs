@@ -16,6 +16,9 @@ public static class Program
         builder.Services.AddSingleton<Journal>();
         builder.Services.AddSingleton<FileInspector>();
         builder.Services.AddSingleton<SystemInventory>();
+        builder.Services.AddSingleton<ThreatKnowledgeCatalog>();
+        builder.Services.AddSingleton<KnownBadHashStore>();
+        builder.Services.AddSingleton<ThreatIntelService>();
         builder.Services.AddSingleton<ProtectionAnalyzer>();
         builder.Services.AddSingleton<QuarantineService>();
         builder.Services.AddSingleton<ProtectionService>();
