@@ -77,3 +77,5 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 @media (min-width:901px){.menu-button{display:grid}.sidebar{display:none}.scrim{display:none}}
 
 .journal-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;color:#69727c;font-size:10px}.journal-toolbar .refresh{border:1px solid var(--border);background:transparent}
+
+.status-dot.offline{background:#d69b9b;box-shadow:0 0 0 3px rgba(214,155,155,.08)}
