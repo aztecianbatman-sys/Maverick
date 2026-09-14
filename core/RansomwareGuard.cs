@@ -73,7 +73,7 @@ public sealed class RansomwareGuard
 
             var candidates = processTracker.Recent(TimeSpan.FromSeconds(15))
                 .Where(p => !string.IsNullOrWhiteSpace(p.ExecutablePath))
-                .Where(IsUserWritablePath)
+.Where(p => IsUserWritablePath(p.ExecutablePath))
                 .Take(8)
                 .ToList();
 
