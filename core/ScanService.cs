@@ -4,11 +4,13 @@ public sealed class ScanService
 {
     private readonly FileInspector files;
     private readonly Journal journal;
+    private readonly ProtectionService protection;
 
-    public ScanService(FileInspector files, Journal journal)
+    public ScanService(FileInspector files, Journal journal, ProtectionService protection)
     {
         this.files = files;
         this.journal = journal;
+        this.protection = protection;
     }
 
     public async Task<object> ScanAsync(string path, CancellationToken cancellationToken)
@@ -23,6 +25,8 @@ public sealed class ScanService
 
         long inspected = 0;
         long failed = 0;
+        long threats = 0;
+        long suspicious = 0;
         var started = DateTimeOffset.UtcNow;
 
         foreach (var file in EnumerateFilesSafe(root))
@@ -31,8 +35,19 @@ public sealed class ScanService
 
             try
             {
-                await files.HashAsync(file);
+                var result = await protection.AnalyzeFileAsync(
+                    file,
+                    allowQuarantine: true,
+                    cancellationToken);
+
                 inspected++;
+
+                if (result is not null &&
+                    result.GetType().GetProperty("verdict")?.GetValue(result) is ProtectionVerdict verdict)
+                {
+                    if (verdict.Verdict == "Threat") threats++;
+                    if (verdict.Verdict == "Suspicious") suspicious++;
+                }
             }
             catch
             {
@@ -52,6 +67,8 @@ public sealed class ScanService
                 root,
                 inspected,
                 failed,
+                threats,
+                suspicious,
                 startedUtc = started,
                 completedUtc = completed
             });
@@ -61,9 +78,11 @@ public sealed class ScanService
             root,
             inspected,
             failed,
+            threats,
+            suspicious,
             startedUtc = started,
             completedUtc = completed,
-            verdict = "inventory-only"
+            verdict = "protection-analysis"
         };
     }
 
