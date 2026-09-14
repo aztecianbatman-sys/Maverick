@@ -136,7 +136,7 @@ function createWindow() {
     height: 800,
     minWidth: 900,
     minHeight: 620,
-    backgroundColor: "#0d0f12",
+    backgroundColor: "#f6f8fb",
     icon: path.join(__dirname, "..", "assets", "maverick-icon.svg"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -146,8 +146,8 @@ function createWindow() {
     },
     titleBarStyle: "hidden",
     titleBarOverlay: {
-      color: "#0d0f12",
-      symbolColor: "#f5f7fa",
+      color: "#ffffff",
+      symbolColor: "#1f2937",
       height: 32,
     },
   });
