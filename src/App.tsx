@@ -1,148 +1,189 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Activity,
-  Bot,
-  ChevronDown,
-  CircleCheck,
-  Clock3,
-  ExternalLink,
-  FileText,
-  Menu,
-  MessageSquare,
-  Plus,
-  RefreshCw,
-  Search,
-  Send,
-  Settings,
-  ShieldCheck,
-  SlidersHorizontal,
-  Sparkles,
-  Trash2,
-  X,
-} from "lucide-react";
+  Activity, AlertTriangle, Bot, CheckCircle2, ChevronRight, Cpu, FileSearch,
+  FolderOpen, HardDrive, LayoutDashboard, Menu, RefreshCw, Search, Send,
+  Settings, ShieldAlert, ShieldCheck, X, Play, ListChecks, LockKeyhole, Plus
+} from 'lucide-react';
 
-type Panel = "none" | "settings" | "models" | "activity";
-const HACKER_CODE = "MAVERICK-LUNAR-TEST";
-
+type Page = 'overview' | 'scan' | 'activity' | 'processes' | 'startup' | 'quarantine' | 'ai' | 'settings';
+const HACKER_CODE = 'MAVERICK-LUNAR-TEST';
 const uid = () => crypto.randomUUID();
 
-function createChat(): MaverickChat {
+function newChat(): MaverickChat {
   const now = Date.now();
-  return { id: uid(), title: "New conversation", createdAt: now, updatedAt: now, messages: [] };
+  return { id: uid(), title: 'New conversation', createdAt: now, updatedAt: now, messages: [] };
 }
 
-function titleFromMessage(content: string) {
-  const cleaned = content.replace(/\s+/g, " ").trim();
-  return cleaned.length > 34 ? cleaned.slice(0, 34) + "…" : cleaned || "New conversation";
+function compactTitle(value: string) {
+  const clean = value.replace(/\s+/g, ' ').trim();
+  return clean.length > 34 ? clean.slice(0, 34) + '…' : clean || 'New conversation';
+}
+
+function timeLabel(value: string | number) {
+  return new Date(value).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
 }
 
 export default function App() {
   const [store, setStore] = useState<MaverickStore | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [panel, setPanel] = useState<Panel>("none");
-  const [composer, setComposer] = useState("");
+  const [page, setPage] = useState<Page>('overview');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [coreState, setCoreState] = useState<'checking' | 'online' | 'offline'>('checking');
+  const [events, setEvents] = useState<MaverickSecurityEvent[]>([]);
+  const [processes, setProcesses] = useState<Array<{ pid: number; name: string; path: string | null; sessionId: number }>>([]);
+  const [startup, setStartup] = useState<Array<{ location: string; name: string; value: string }>>([]);
+  const [quarantine, setQuarantine] = useState<Array<{ path: string; name: string; sizeBytes: number; createdUtc: string }>>([]);
+  const [scanPath, setScanPath] = useState('');
+  const [scanBusy, setScanBusy] = useState(false);
+  const [scanResult, setScanResult] = useState<any>(null);
+  const [composer, setComposer] = useState('');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [modelSearch, setModelSearch] = useState("");
-  const [modelFilter, setModelFilter] = useState<"all" | "free">("all");
-  const [apiKeyDraft, setApiKeyDraft] = useState("");
-  const [providerDraft, setProviderDraft] = useState("openrouter");
-  const [baseUrlDraft, setBaseUrlDraft] = useState("https://openrouter.ai/api/v1");
-  const [modelDraft, setModelDraft] = useState("");
+  const [hackerScreen, setHackerScreen] = useState(false);
   const [models, setModels] = useState<MaverickModel[]>([]);
   const [modelsBusy, setModelsBusy] = useState(false);
+  const [modelSearch, setModelSearch] = useState('');
+  const [modelFilter, setModelFilter] = useState<'all' | 'free'>('all');
+  const [apiKeyDraft, setApiKeyDraft] = useState('');
+  const [providerDraft, setProviderDraft] = useState('openrouter');
+  const [baseUrlDraft, setBaseUrlDraft] = useState('https://openrouter.ai/api/v1');
+  const [modelDraft, setModelDraft] = useState('');
   const [settingsSaved, setSettingsSaved] = useState(false);
+  const [error, setError] = useState('');
 
-  function openHackerScreen() {
-    setHackerScreen(true);
-    try {
-      const speech = new SpeechSynthesisUtterance("Hackers not allowed. Maverick has opened the developer security test screen.");
-      speech.rate = 0.92;
-      speech.pitch = 0.72;
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(speech);
-    } catch {
-      // Text screen remains usable when speech synthesis is unavailable.
-    }
-  }
+  const activeChat = useMemo(() => {
+    return store?.chats.find((chat) => chat.id === store.activeChatId) ?? null;
+  }, [store]);
 
-  function closeHackerScreen() {
-    setHackerScreen(false);
-    try { window.speechSynthesis.cancel(); } catch {}
-  }
-  const [securityEvents, setSecurityEvents] = useState<MaverickSecurityEvent[]>([]);
-  const [journalBusy, setJournalBusy] = useState(false);
-  const [coreState, setCoreState] = useState<"checking" | "online" | "offline">("checking");
-  const [hackerScreen, setHackerScreen] = useState(false);
-
-  const activeChat = useMemo(() => store?.chats.find((c) => c.id === store.activeChatId) ?? null, [store]);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const key = event.key.length === 1 ? event.key.toUpperCase() : "";
-      if (!key) return;
-      const current = ((window as typeof window & { __maverickCode?: string }).__maverickCode || "") + key;
-      (window as typeof window & { __maverickCode?: string }).__maverickCode = current.slice(-HACKER_CODE.length);
-      if ((window as typeof window & { __maverickCode?: string }).__maverickCode === HACKER_CODE) {
-        openHackerScreen();
-        (window as typeof window & { __maverickCode?: string }).__maverickCode = "";
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  const highRisk = events.filter((event) => (event.risk || '').toLowerCase() === 'high').length;
+  const mediumRisk = events.filter((event) => (event.risk || '').toLowerCase() === 'medium').length;
 
   useEffect(() => {
     let mounted = true;
+    async function boot() {
+      try {
+        const loaded = await window.maverick.getStore();
+        let next = loaded;
+        if (loaded.chats.length === 0) {
+          const chat = newChat();
+          next = { ...loaded, chats: [chat], activeChatId: chat.id };
+          await window.maverick.saveStore({ chats: next.chats, activeChatId: next.activeChatId });
+        }
+        if (!mounted) return;
+        setStore(next);
+        setProviderDraft(next.settings.provider);
+        setBaseUrlDraft(next.settings.baseUrl);
+        setModelDraft(next.settings.model);
+        setModels(await window.maverick.cachedModels(next.settings.provider));
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Maverick could not start.');
+      }
+    }
+    void boot();
+    return () => { mounted = false; };
+  }, []);
+
+  useEffect(() => {
     const checkCore = async () => {
       try {
-        await window.maverick.coreRequest("status");
-        if (mounted) setCoreState("online");
+        await window.maverick.coreRequest('status');
+        setCoreState('online');
       } catch {
-        if (mounted) setCoreState("offline");
+        setCoreState('offline');
       }
     };
     void checkCore();
-    const timer = window.setInterval(checkCore, 15000);
-    window.maverick.getStore().then((loaded) => {
-      let normalized = loaded;
-      if (loaded.chats.length === 0) {
-        const first = createChat();
-        normalized = { ...loaded, chats: [first], activeChatId: first.id };
-        window.maverick.saveStore({ chats: normalized.chats, activeChatId: normalized.activeChatId });
-      }
-      setStore(normalized);
-      setProviderDraft(loaded.settings.provider);
-      setBaseUrlDraft(loaded.settings.baseUrl);
-      setModelDraft(loaded.settings.model);
-      window.maverick.cachedModels(loaded.settings.provider).then(setModels);
-      window.maverick.configureDefaultMonitoring().catch(() => undefined);
-    });
-    return () => {
-      mounted = false;
-      window.clearInterval(timer);
-    };
+    const timer = window.setInterval(checkCore, 10000);
+    return () => window.clearInterval(timer);
   }, []);
 
-  async function persist(next: MaverickStore) {
-    setStore(next);
-    await window.maverick.saveStore({ chats: next.chats, activeChatId: next.activeChatId, activity: next.activity });
-  }
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key.length !== 1) return;
+      const target = event.target as HTMLElement | null;
+      if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA') return;
+      const bag = ((window as typeof window & { __maverickCode?: string }).__maverickCode || '') + event.key.toUpperCase();
+      (window as typeof window & { __maverickCode?: string }).__maverickCode = bag.slice(-HACKER_CODE.length);
+      if ((window as typeof window & { __maverickCode?: string }).__maverickCode === HACKER_CODE) {
+        setHackerScreen(true);
+        try {
+          const speech = new SpeechSynthesisUtterance('Hackers not allowed. Maverick developer security screen activated.');
+          speech.rate = 0.92;
+          speech.pitch = 0.78;
+          window.speechSynthesis.cancel();
+          window.speechSynthesis.speak(speech);
+        } catch {}
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
-  function isSecurityQuestion(text: string) {
-    return /security|threat|malware|virus|device activity|security activity|recent events?|what happened to my device|what happened today|anything suspicious/i.test(text);
-  }
-
-  async function loadJournal() {
-    setJournalBusy(true);
+  async function refreshJournal() {
     try {
-      const result = await window.maverick.coreRequest("journal.recent", { limit: 200 });
-      setSecurityEvents(Array.isArray(result) ? result as MaverickSecurityEvent[] : []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Maverick Core is unavailable.");
-    } finally {
-      setJournalBusy(false);
+      const result = await window.maverick.coreRequest('journal.recent', { limit: 300 });
+      setEvents(Array.isArray(result) ? result as MaverickSecurityEvent[] : []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Maverick Core is unavailable.');
     }
+  }
+
+  async function refreshProcesses() {
+    try {
+      const result = await window.maverick.coreRequest('processes.list');
+      setProcesses(Array.isArray(result) ? result as typeof processes : []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not read running processes.');
+    }
+  }
+
+  async function refreshStartup() {
+    try {
+      const result = await window.maverick.coreRequest('startup.list');
+      setStartup(Array.isArray(result) ? result as typeof startup : []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not inspect startup locations.');
+    }
+  }
+
+  async function refreshQuarantine() {
+    try {
+      const result = await window.maverick.coreRequest('quarantine.list');
+      setQuarantine(Array.isArray(result) ? result as typeof quarantine : []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not read quarantine.');
+    }
+  }
+
+  async function pickFolder() {
+    try {
+      const selected = await window.maverick.pickFolder();
+      if (selected) setScanPath(selected);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Folder picker failed.');
+    }
+  }
+
+  async function runScan() {
+    if (!scanPath.trim() || scanBusy) return;
+    setScanBusy(true);
+    setScanResult(null);
+    try {
+      const result = await window.maverick.coreRequest('scan', { path: scanPath.trim() });
+      setScanResult(result);
+      await refreshJournal();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Scan failed.');
+    } finally {
+      setScanBusy(false);
+    }
+  }
+
+  async function saveStore(next: MaverickStore) {
+    setStore(next);
+    await window.maverick.saveStore({
+      chats: next.chats,
+      activeChatId: next.activeChatId,
+      activity: next.activity
+    });
   }
 
   async function sendMessage() {
@@ -150,316 +191,221 @@ export default function App() {
     const content = composer.trim();
     if (!content) return;
     if (content.toUpperCase().includes(HACKER_CODE)) {
-      setComposer("");
-      openHackerScreen();
+      setComposer('');
+      setHackerScreen(true);
+      try {
+        const speech = new SpeechSynthesisUtterance('Hackers not allowed. Maverick developer security screen activated.');
+        speech.rate = 0.92;
+        speech.pitch = 0.78;
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(speech);
+      } catch {}
       return;
     }
 
-    setError("");
     setBusy(true);
-    const userMessage: MaverickMessage = { id: uid(), role: "user", content, createdAt: Date.now() };
-    const nextMessages = [...activeChat.messages, userMessage];
-    const title = activeChat.messages.length === 0 ? titleFromMessage(content) : activeChat.title;
-    const stagedChat = { ...activeChat, title, messages: nextMessages, updatedAt: Date.now() };
-    const stagedStore = {
-      ...store,
-      chats: store.chats.map((chat) => chat.id === activeChat.id ? stagedChat : chat),
+    setError('');
+    const userMessage: MaverickMessage = { id: uid(), role: 'user', content, createdAt: Date.now() };
+    const messages = [...activeChat.messages, userMessage];
+    const stagedChat = {
+      ...activeChat,
+      title: activeChat.messages.length === 0 ? compactTitle(content) : activeChat.title,
+      messages,
+      updatedAt: Date.now()
     };
-    setComposer("");
-    await persist(stagedStore);
+    const stagedStore = { ...store, chats: store.chats.map((chat) => chat.id === activeChat.id ? stagedChat : chat) };
+    setComposer('');
+    await saveStore(stagedStore);
 
     try {
-      let messagesForProvider = nextMessages.map((m) => ({ role: m.role, content: m.content }));
-      if (isSecurityQuestion(content)) {
-        const result = await window.maverick.coreRequest("journal.today", { limit: 200 });
-        const events = Array.isArray(result) ? result as MaverickSecurityEvent[] : [];
-        setSecurityEvents(events);
-        const journalContext = [
-          "Maverick local security journal for today.",
-          "Use this data as evidence. Do not invent events, verdicts, or actions.",
-          "The journal is local device data supplied by the user to the selected BYOK provider.",
-          JSON.stringify(events)
-        ].join("\n");
-        messagesForProvider = [
-          { role: "system", content: journalContext },
-          ...messagesForProvider
+      let providerMessages = messages.map((message) => ({ role: message.role, content: message.content }));
+      if (/security|threat|malware|virus|suspicious|activity|scan|device/i.test(content)) {
+        const result = await window.maverick.coreRequest('journal.today', { limit: 200 });
+        const localEvents = Array.isArray(result) ? result as MaverickSecurityEvent[] : [];
+        setEvents(localEvents);
+        providerMessages = [
+          { role: 'system', content: 'You are Maverick AI. Security decisions belong to Maverick Core. Use only the supplied local journal as evidence. Never invent detections, events, or remediation.' },
+          { role: 'system', content: 'Local security journal:\\n' + JSON.stringify(localEvents) },
+          ...providerMessages
         ];
       }
-
       const response = await window.maverick.sendChat({
-        model: stagedStore.settings.model || modelDraft,
-        messages: messagesForProvider,
+        model: store.settings.model || modelDraft,
+        messages: providerMessages
       });
-      const assistantMessage: MaverickMessage = {
-        id: uid(),
-        role: "assistant",
-        content: response,
-        createdAt: Date.now(),
-      };
-      const finalChat = { ...stagedChat, messages: [...nextMessages, assistantMessage], updatedAt: Date.now() };
-      const activity: MaverickActivity = {
-        id: uid(),
-        type: "ai",
-        summary: `AI response generated with ${stagedStore.settings.model || modelDraft || "selected model"}`,
-        createdAt: Date.now(),
-      };
-      await persist({
+      const assistant: MaverickMessage = { id: uid(), role: 'assistant', content: response, createdAt: Date.now() };
+      const finalChat = { ...stagedChat, messages: [...messages, assistant], updatedAt: Date.now() };
+      await saveStore({
         ...stagedStore,
         chats: stagedStore.chats.map((chat) => chat.id === activeChat.id ? finalChat : chat),
-        activity: [activity, ...(stagedStore.activity || [])].slice(0, 500),
+        activity: [{ id: uid(), type: 'ai', summary: 'Maverick AI response generated', createdAt: Date.now() }, ...(store.activity || [])].slice(0, 500)
       });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "The AI request failed.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'AI request failed.');
     } finally {
       setBusy(false);
     }
   }
 
-  function newChat() {
-    if (!store) return;
-    const chat = createChat();
-    const next = { ...store, chats: [chat, ...store.chats], activeChatId: chat.id };
-    setError("");
-    persist(next);
-    setSidebarOpen(false);
-  }
-
-  function chooseChat(id: string) {
-    if (!store) return;
-    setStore({ ...store, activeChatId: id });
-    window.maverick.saveStore({ activeChatId: id });
-    setSidebarOpen(false);
-  }
-
   async function loadModels() {
     setModelsBusy(true);
-    setError("");
+    setError('');
     try {
-      const result = await window.maverick.listModels({ provider: providerDraft, baseUrl: baseUrlDraft });
-      setModels(result);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load models.");
+      setModels(await window.maverick.listModels({ provider: providerDraft, baseUrl: baseUrlDraft }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not load models.');
     } finally {
       setModelsBusy(false);
     }
   }
 
   async function saveSettings() {
-    setError("");
+    setError('');
     try {
-      const settingsInput: { provider: string; baseUrl: string; model: string; apiKey?: string } = {
+      const input: { provider: string; baseUrl: string; model: string; apiKey?: string } = {
         provider: providerDraft,
         baseUrl: baseUrlDraft,
-        model: modelDraft,
+        model: modelDraft
       };
-      if (apiKeyDraft.trim()) settingsInput.apiKey = apiKeyDraft.trim();
-      const saved = await window.maverick.saveSettings(settingsInput);
-      if (store) setStore({ ...store, settings: saved });
-      setApiKeyDraft("");
+      if (apiKeyDraft.trim()) input.apiKey = apiKeyDraft.trim();
+      const settings = await window.maverick.saveSettings(input);
+      setStore(store ? { ...store, settings } : store);
+      setApiKeyDraft('');
       setSettingsSaved(true);
-      setTimeout(() => setSettingsSaved(false), 2200);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save settings.");
+      window.setTimeout(() => setSettingsSaved(false), 1800);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save settings.');
     }
   }
 
-  async function testApi() {
-    setError("");
-    try {
-      const result = await window.maverick.testApi({
-        provider: providerDraft,
-        baseUrl: baseUrlDraft,
-        apiKey: apiKeyDraft || undefined,
-      });
-      setError(`Connection verified — ${result.modelCount} models available.`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Connection failed.");
-    }
+  function navigate(next: Page) {
+    setPage(next);
+    if (next === 'overview' || next === 'activity') void refreshJournal();
+    if (next === 'processes') void refreshProcesses();
+    if (next === 'startup') void refreshStartup();
+    if (next === 'quarantine') void refreshQuarantine();
   }
+
+  if (!store) return <div className="boot-screen"><div className="boot-mark">M</div><span>Starting Maverick…</span></div>;
 
   if (hackerScreen) {
-    return (
-      <div className="hacker-screen">
-        <div className="hacker-symbol" aria-hidden="true">⚠</div>
-        <div className="hacker-title">HACKERS NOT ALLOWED</div>
-        <div className="hacker-rule" />
-        <p className="hacker-copy">
-          Maverick entered its developer security lock screen because the test trigger was detected.
-          This is a test flow only. It does not mean a real attacker was identified.
-        </p>
-        <div className="hacker-reason">
-          <span>DEVELOPER TRIGGER</span>
-          <strong>{HACKER_CODE}</strong>
-          <small>No system files were changed.</small>
-        </div>
-        <button className="hacker-button" onClick={closeHackerScreen}>Return to Maverick</button>
+    return <div className="hacker-screen">
+      <div className="hacker-symbol">⚠</div>
+      <div className="hacker-title">HACKERS NOT ALLOWED</div>
+      <div className="hacker-rule"></div>
+      <p>Maverick entered its developer security lock screen because the test trigger was detected. This does not represent a real intrusion verdict.</p>
+      <div className="hacker-reason"><span>DEVELOPER TRIGGER</span><strong>{HACKER_CODE}</strong><small>No security components were changed.</small></div>
+      <button className="hacker-button" onClick={() => { setHackerScreen(false); try { window.speechSynthesis.cancel(); } catch {} }}>Return to Maverick</button>
+    </div>;
+  }
+
+  return <div className="crm-shell">
+    <aside className={'crm-sidebar ' + (sidebarOpen ? 'open' : 'collapsed')}>
+      <div className="brand">
+        <img src="/assets/maverick-icon.svg" alt="" />
+        {sidebarOpen && <div><strong>Maverick</strong><span>Device security</span></div>}
       </div>
-    );
-  }
+      <button className="sidebar-toggle" onClick={() => setSidebarOpen(!sidebarOpen)} aria-label="Toggle sidebar"><Menu size={19}/></button>
+      <nav className="nav">
+        <NavItem icon={<LayoutDashboard size={18}/>} label="Overview" active={page === 'overview'} open={sidebarOpen} onClick={() => navigate('overview')} />
+        <NavItem icon={<FileSearch size={18}/>} label="Scan" active={page === 'scan'} open={sidebarOpen} onClick={() => navigate('scan')} />
+        <NavItem icon={<Activity size={18}/>} label="Activity" active={page === 'activity'} open={sidebarOpen} onClick={() => navigate('activity')} />
+        <div className="nav-label">{sidebarOpen && 'DEVICE'}</div>
+        <NavItem icon={<Cpu size={18}/>} label="Processes" active={page === 'processes'} open={sidebarOpen} onClick={() => navigate('processes')} />
+        <NavItem icon={<ListChecks size={18}/>} label="Startup" active={page === 'startup'} open={sidebarOpen} onClick={() => navigate('startup')} />
+        <NavItem icon={<HardDrive size={18}/>} label="Quarantine" active={page === 'quarantine'} open={sidebarOpen} onClick={() => navigate('quarantine')} />
+        <div className="nav-label">{sidebarOpen && 'MAVERICK AI'}</div>
+        <NavItem icon={<Bot size={18}/>} label="AI assistant" active={page === 'ai'} open={sidebarOpen} onClick={() => navigate('ai')} />
+      </nav>
+      <div className="sidebar-footer">
+        <NavItem icon={<Settings size={18}/>} label="Settings" active={page === 'settings'} open={sidebarOpen} onClick={() => navigate('settings')} />
+        {sidebarOpen && <div className="build-chip">Base · 0.5.1</div>}
+      </div>
+    </aside>
 
-  if (!store) {
-    return <div className="boot">Starting Maverick…</div>;
-  }
-
-  const freeCount = models.filter((model) => model.free).length;
-  const filteredModels = models
-    .filter((model) => model.name.toLowerCase().includes(modelSearch.toLowerCase()) || model.id.toLowerCase().includes(modelSearch.toLowerCase()))
-    .filter((model) => modelFilter === "all" || model.free);
-
-  return (
-    <div className="app-shell">
-      {sidebarOpen && <button className="scrim" aria-label="Close sidebar" onClick={() => setSidebarOpen(false)} />}
-      <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
-        <div className="sidebar-top">
-          <div className="brand-row"><img src="/assets/maverick-icon.svg" alt="" /><span>Maverick</span></div>
-          <button className="icon-button" onClick={() => setSidebarOpen(false)} aria-label="Close"><X size={18}/></button>
+    <section className="crm-main">
+      <header className="crm-topbar">
+        <div className="crumb"><span>Maverick</span><ChevronRight size={14}/><strong>{labelFor(page)}</strong></div>
+        <div className="top-actions">
+          <button className={'health ' + coreState} onClick={() => navigate('activity')}><span></span>{coreState === 'online' ? 'Protected' : coreState === 'offline' ? 'Core offline' : 'Checking'}</button>
+          <button className="top-icon" title="Refresh security state" onClick={() => { void refreshJournal(); }}><RefreshCw size={17}/></button>
         </div>
-        <button className="new-chat" onClick={newChat}><Plus size={17}/> New chat</button>
-        <div className="sidebar-section">
-          <div className="section-label">Conversations</div>
-          {store.chats.slice(0, 12).map((chat) => (
-            <button key={chat.id} className={`chat-row ${chat.id === store.activeChatId ? "selected" : ""}`} onClick={() => chooseChat(chat.id)}>
-              <MessageSquare size={15}/><span>{chat.title}</span>
-            </button>
-          ))}
-        </div>
-        <div className="sidebar-bottom">
-          <button onClick={() => { setPanel("activity"); void loadJournal(); }}><Activity size={16}/> Activity</button>
-          <button onClick={() => setPanel("settings")}><Settings size={16}/> API & settings</button>
-        </div>
-      </aside>
+      </header>
 
-      <main className="main">
-        <header className="topbar">
-          <button className="icon-button menu-button" aria-label="Open sidebar" onClick={() => setSidebarOpen(true)}><Menu size={21}/></button>
-          <div className="topbar-title">Maverick</div>
-          <div className="topbar-right">
-            <button className="status-pill" onClick={() => setPanel("activity")} title="Open activity">
-              <span className={`status-dot ${coreState === "offline" ? "offline" : ""}`} /> {coreState === "online" ? "Protected" : coreState === "offline" ? "Core offline" : "Checking"}
-            </button>
-            <button className="status-pill subtle" onClick={() => setPanel("settings")}>
-              {store.settings.hasApiKey ? store.settings.model || "Choose model" : "Set up AI"} <ChevronDown size={14}/>
-            </button>
-          </div>
-        </header>
+      <main className="page">
+        {error && <div className="global-error"><AlertTriangle size={16}/><span>{error}</span><button onClick={() => setError('')}><X size={14}/></button></div>}
 
-        <section className={`conversation ${activeChat?.messages.length ? "has-messages" : ""}`}>
-          {activeChat?.messages.length ? (
-            <div className="messages">
-              {activeChat.messages.map((message) => (
-                <div key={message.id} className={`message ${message.role}`}>
-                  <div className="message-role">{message.role === "user" ? "You" : "Maverick"}</div>
-                  <div className="message-body">{message.content}</div>
-                </div>
-              ))}
-              {busy && <div className="message assistant"><div className="message-role">Maverick</div><div className="typing"><span/><span/><span/></div></div>}
-            </div>
-          ) : (
-            <div className="welcome">
-              <img className="hero-logo" src="/assets/maverick-icon.png" alt="Maverick" />
-              <div className="hello">HELLO!</div>
-              <p>I'M MAVERICK.</p>
-              <span className="welcome-note">Ask about your device, security, or anything else.</span>
-            </div>
-          )}
-        </section>
-
-        <div className="composer-wrap">
-          {error && <div className="notice"><span>{error}</span><button onClick={() => setError("")}><X size={14}/></button></div>}
-          <div className="composer">
-            <button className="composer-action" onClick={() => setPanel("models")} title="Browse models"><SlidersHorizontal size={17}/></button>
-            <textarea
-              value={composer}
-              onChange={(event) => setComposer(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
-                  event.preventDefault();
-                  sendMessage();
-                }
-              }}
-              placeholder="Ask Maverick…"
-              rows={1}
-              disabled={busy}
-            />
-            <button className="send-button" onClick={sendMessage} disabled={busy || !composer.trim()} aria-label="Send"><Send size={17}/></button>
-          </div>
-          <div className="composer-meta">
-            <span>{store.settings.hasApiKey ? "BYOK • Local settings" : "Add a BYOK key to start chatting"}</span>
-            <button onClick={() => setPanel("models")}>{store.settings.model || "Choose model"} <ChevronDown size={13}/></button>
-          </div>
-        </div>
+        {page === 'overview' && <Overview coreState={coreState} highRisk={highRisk} mediumRisk={mediumRisk} events={events.slice(0,6)} onScan={() => navigate('scan')} onActivity={() => navigate('activity')} />}
+        {page === 'scan' && <ScanPage path={scanPath} setPath={setScanPath} busy={scanBusy} result={scanResult} onBrowse={pickFolder} onScan={runScan} />}
+        {page === 'activity' && <ActivityPage events={events} highRisk={highRisk} mediumRisk={mediumRisk} onRefresh={refreshJournal} />}
+        {page === 'processes' && <InventoryPage title="Running processes" subtitle="Read-only inventory from Maverick Core." icon={<Cpu size={22}/>} headers={['Process','PID','Location','Session']} rows={processes.map((p)=><[React.ReactNode,React.ReactNode,React.ReactNode,React.ReactNode]><>{<strong>{p.name}</strong>}<small>PID {p.pid}</small></>,p.pid,<span className="truncate">{p.path || 'Access denied / unavailable'}</span>,p.sessionId])} action={<button className="outline" onClick={() => void refreshProcesses()}><RefreshCw size={15}/> Refresh</button>} empty="No process inventory loaded." />}
+        {page === 'startup' && <InventoryPage title="Startup locations" subtitle="Read-only inspection of Windows Run keys and startup folders." icon={<ListChecks size={22}/>} headers={['Entry','Location','Value','']} rows={startup.map((item,i)=><[React.ReactNode,React.ReactNode,React.ReactNode,React.ReactNode]><strong key={i}>{item.name}</strong>,item.location,<span className="truncate">{item.value}</span>,<ChevronRight size={16}/>) } action={<button className="outline" onClick={() => void refreshStartup()}><RefreshCw size={15}/> Refresh</button>} empty="No startup entries loaded." />}
+        {page === 'quarantine' && <QuarantinePage items={quarantine} onRefresh={refreshQuarantine} />}
+        {page === 'ai' && <AIPage store={store} activeChat={activeChat} composer={composer} setComposer={setComposer} busy={busy} modelDraft={modelDraft} onSend={sendMessage} onConfigure={() => navigate('settings')} highRisk={highRisk} events={events.length} coreState={coreState} />}
+        {page === 'settings' && <SettingsPage store={store} provider={providerDraft} setProvider={setProviderDraft} baseUrl={baseUrlDraft} setBaseUrl={setBaseUrlDraft} key={apiKeyDraft} setKey={setApiKeyDraft} model={modelDraft} setModel={setModelDraft} models={models} busy={modelsBusy} search={modelSearch} setSearch={setModelSearch} filter={modelFilter} setFilter={setModelFilter} onLoad={loadModels} onSave={saveSettings} saved={settingsSaved} />}
       </main>
-
-      {panel !== "none" && (
-        <section className="drawer">
-          <div className="drawer-head">
-            <div>
-              <div className="drawer-kicker">{panel === "models" ? "MODEL BROWSER" : panel === "settings" ? "MAVERICK AI" : "LOCAL JOURNAL"}</div>
-              <h2>{panel === "models" ? "Choose a model" : panel === "settings" ? "API & settings" : "Activity"}</h2>
-            </div>
-            <button className="icon-button" onClick={() => setPanel("none")}><X size={18}/></button>
-          </div>
-
-          {panel === "settings" && (
-            <div className="drawer-content">
-              <div className="field"><label>Provider</label><select value={providerDraft} onChange={(e) => setProviderDraft(e.target.value)}><option value="openrouter">OpenRouter</option><option value="custom">Custom OpenAI-compatible</option></select></div>
-              <div className="field"><label>API base URL</label><input value={baseUrlDraft} onChange={(e) => setBaseUrlDraft(e.target.value)} /></div>
-              <div className="field"><label>API key</label><input type="password" placeholder={store.settings.hasApiKey ? "Saved securely on this device" : "Paste your provider key"} value={apiKeyDraft} onChange={(e) => setApiKeyDraft(e.target.value)} /></div>
-              <div className="settings-actions"><button onClick={testApi}>Test connection</button><button className="primary" onClick={saveSettings}>Save settings</button></div>
-              {settingsSaved && <div className="success-line"><CircleCheck size={16}/> Saved locally.</div>}
-              <div className="privacy-card"><ShieldCheck size={18}/><div><strong>Your key stays local.</strong><span>Maverick stores it using the operating system's protected local storage. The renderer never receives the saved key.</span></div></div>
-              <button className="link-button" onClick={() => setPanel("models")}>Browse models <ExternalLink size={14}/></button>
-            </div>
-          )}
-
-          {panel === "models" && (
-            <div className="drawer-content models-panel">
-              <div className="model-toolbar">
-                <div className="search"><Search size={15}/><input placeholder="Search models" value={modelSearch} onChange={(e) => setModelSearch(e.target.value)} /></div>
-                <button className={modelFilter === "all" ? "filter active" : "filter"} onClick={() => setModelFilter("all")}>All</button>
-                <button className={modelFilter === "free" ? "filter active free" : "filter"} onClick={() => setModelFilter("free")}>Free {freeCount ? `(${freeCount})` : ""}</button>
-                <button className="refresh" onClick={loadModels} disabled={modelsBusy} title="Refresh models"><RefreshCw size={15} className={modelsBusy ? "spin" : ""}/></button>
-              </div>
-              {!store.settings.hasApiKey && <div className="empty-models"><Sparkles size={18}/><span>Add an API key in settings to browse provider models.</span><button onClick={() => setPanel("settings")}>Set up key</button></div>}
-              {store.settings.hasApiKey && models.length === 0 && !modelsBusy && <div className="empty-models"><Clock3 size={18}/><span>No cached models yet.</span><button onClick={loadModels}>Load models</button></div>}
-              <div className="model-list">
-                {filteredModels.map((model) => (
-                  <button key={model.id} className={`model-card ${modelDraft === model.id ? "selected" : ""}`} onClick={async () => {
-                    setModelDraft(model.id);
-                    const saved = await window.maverick.saveSettings({ model: model.id });
-                    setStore({ ...store, settings: saved });
-                  }}>
-                    <div className="model-title"><span>{model.name}</span>{model.free && <span className="free-badge">FREE</span>}</div>
-                    <div className="model-id">{model.id}</div>
-                    {model.contextLength > 0 && <div className="model-meta">Context {model.contextLength.toLocaleString()}</div>}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {panel === "activity" && (
-            <div className="drawer-content">
-              <div className="journal-toolbar"><span>{journalBusy ? "Reading Core journal…" : securityEvents.length + " events loaded"}</span><button className="refresh" onClick={loadJournal} disabled={journalBusy} title="Refresh journal"><RefreshCw size={15} className={journalBusy ? "spin" : ""}/></button></div>
-              {securityEvents.length ? securityEvents.slice(0, 100).map((item) => (
-                <div className="activity-row" key={item.id}>
-                  <div className="activity-icon"><Activity size={15}/></div>
-                  <div>
-                    <strong>{item.type}{item.risk ? " · " + item.risk : ""}</strong>
-                    <span>{item.summary}</span>
-                    <small>{item.process || item.file || item.source || "Maverick Core"} · {new Date(item.createdUtc).toLocaleString()}</small>
-                  </div>
-                </div>
-              )) : <div className="empty-models"><Clock3 size={18}/><span>No Core events recorded yet.</span></div>}
-              <button className="danger-button" onClick={async () => {
-                const next = { ...store, activity: [] };
-                await persist(next);
-                setSecurityEvents([]);
-              }}><Trash2 size={15}/> Delete AI activity</button>
-            </div>
-          )}
-        </section>
-      )}
-    </div>
-  );
+    </section>
+  </div>;
 }
+
+function NavItem({icon,label,active,open,onClick}:{icon:React.ReactNode;label:string;active:boolean;open:boolean;onClick:()=>void}) {
+  return <button className={'nav-item ' + (active ? 'active ' : '') + (open ? 'expanded' : '')} onClick={onClick} title={open ? '' : label}>{icon}{open && <span>{label}</span>}</button>;
+}
+
+function labelFor(page: Page) {
+  return ({overview:'Overview',scan:'Scan',activity:'Activity',processes:'Processes',startup:'Startup',quarantine:'Quarantine',ai:'AI assistant',settings:'Settings'})[page];
+}
+
+function Heading({title,subtitle,icon,action}:{title:string;subtitle:string;icon:React.ReactNode;action?:React.ReactNode}) {
+  return <div className="page-heading"><div><div className="heading-icon">{icon}</div><div><h1>{title}</h1><p>{subtitle}</p></div></div>{action}</div>;
+}
+
+function Overview({coreState,highRisk,mediumRisk,events,onScan,onActivity}:{coreState:string;highRisk:number;mediumRisk:number;events:MaverickSecurityEvent[];onScan:()=>void;onActivity:()=>void}) {
+  return <section className="section-page">
+    <div className="hero-row"><div><span className="eyebrow">DEVICE SECURITY</span><h1>Your device at a glance</h1><p>Maverick keeps protection, local activity, and investigations in one place.</p></div><button className="primary large" onClick={onScan}><FileSearch size={17}/> Run a scan</button></div>
+    <div className="overview-grid">
+      <div className="protection-card"><div className="protection-ring"><ShieldCheck size={34}/></div><div><span className="eyebrow">PROTECTION STATUS</span><h2>{coreState === 'online' ? 'Maverick is running' : 'Maverick Core needs attention'}</h2><p>{coreState === 'online' ? 'The native Core is online and able to monitor configured locations.' : 'Start Maverick Core to enable native protection features.'}</p></div><div className={'state-tag ' + coreState}>{coreState === 'online' ? 'Protected' : coreState === 'offline' ? 'Offline' : 'Checking'}</div></div>
+      <MiniCard title="High-risk events" value={highRisk} icon={<ShieldAlert size={18}/>} tone={highRisk ? 'danger' : 'good'}/><MiniCard title="Medium-risk events" value={mediumRisk} icon={<AlertTriangle size={18}/>} tone={mediumRisk ? 'warn' : 'good'}/>
+    </div>
+    <div className="lower-grid"><div className="table-card"><div className="section-card-head"><div><strong>Recent security activity</strong><span>Latest events from Maverick Core</span></div><button className="link-btn" onClick={onActivity}>View all <ChevronRight size={15}/></button></div>{events.length ? events.map((event)=><div className="activity-list-row" key={event.id}><div className="event-dot"/><div><strong>{event.summary}</strong><span>{event.file || event.process || event.source || 'Maverick Core'}</span></div><RiskBadge value={event.risk || 'unknown'}/><small>{timeLabel(event.createdUtc)}</small></div>) : <Empty text="Nothing to report yet."/>}</div><div className="quick-card"><div className="card-title">Quick actions</div><button onClick={onScan}><FileSearch size={17}/><span>Run a scan</span><ChevronRight size={16}/></button><button onClick={onActivity}><Activity size={17}/><span>Review activity</span><ChevronRight size={16}/></button></div></div>
+  </section>;
+}
+
+function ScanPage({path,setPath,busy,result,onBrowse,onScan}:{path:string;setPath:(value:string)=>void;busy:boolean;result:any;onBrowse:()=>void;onScan:()=>void}) {
+  return <section className="section-page"><Heading title="Scan your device" subtitle="Use the native Maverick Core scanner. This is not an AI-generated result." icon={<FileSearch size={22}/>} />
+    <div className="scan-card"><div className="scan-icon"><ShieldCheck size={28}/></div><div className="scan-copy"><h3>Choose a folder to scan</h3><p>Maverick will traverse the folder and calculate file hashes using the Core.</p><div className="scan-picker"><input value={path} onChange={(e)=>setPath(e.target.value)} placeholder="C:\\Users\\You\\Downloads"/><button onClick={onBrowse}><FolderOpen size={16}/> Browse</button><button className="primary" disabled={!path.trim() || busy} onClick={onScan}>{busy?<RefreshCw className="spin" size={16}/>:<Play size={16}/>} {busy?'Scanning…':'Start scan'}</button></div></div></div>
+    {result&&<div className="result-card"><CheckCircle2 size={20}/><div><strong>Scan completed</strong><span>{result.inspected ?? 0} files inspected · {result.failed ?? 0} unavailable · mode: {result.verdict || 'inventory-only'}</span></div></div>}
+  </section>;
+}
+
+function ActivityPage({events,highRisk,mediumRisk,onRefresh}:{events:MaverickSecurityEvent[];highRisk:number;mediumRisk:number;onRefresh:()=>void}) {
+  return <section className="section-page"><Heading title="Activity" subtitle="A local timeline of what Maverick observes and does." icon={<Activity size={22}/>} action={<button className="outline" onClick={()=>void onRefresh()}><RefreshCw size={15}/> Refresh</button>}/><div className="stats-row"><Stat label="Events" value={events.length}/><Stat label="High risk" value={highRisk} tone={highRisk?'danger':'normal'}/><Stat label="Medium risk" value={mediumRisk} tone={mediumRisk?'warn':'normal'}/></div><div className="table-card"><div className="table-head"><span>Event</span><span>Process / file</span><span>Risk</span><span>Time</span></div>{events.length?events.map((event)=><div className="table-row" key={event.id}><div><strong>{event.summary}</strong><small>{event.type} · {event.source}</small></div><div className="truncate">{event.process||event.file||'—'}</div><RiskBadge value={event.risk||'unknown'}/><div className="muted">{timeLabel(event.createdUtc)}</div></div>):<Empty text="No Core security events recorded yet."/>}</div></section>;
+}
+
+function InventoryPage({title,subtitle,icon,headers,rows,action,empty}:{title:string;subtitle:string;icon:React.ReactNode;headers:string[];rows:React.ReactNode[][];action?:React.ReactNode;empty:string}) {
+  return <section className="section-page"><Heading title={title} subtitle={subtitle} icon={icon} action={action}/><div className="table-card"><div className="table-head">{headers.map((header,i)=><span key={i}>{header}</span>)}</div>{rows.length?rows.map((row,i)=><div className="table-row" key={i}>{row.map((cell,j)=><div key={j} className={j>0?'truncate':''}>{cell}</div>)}</div>):<Empty text={empty}/>}</div></section>;
+}
+
+function QuarantinePage({items,onRefresh}:{items:Array<{path:string;name:string;sizeBytes:number;createdUtc:string}>;onRefresh:()=>void}) {
+  return <section className="section-page"><Heading title="Quarantine" subtitle="Maverick isolates confirmed threat files here." icon={<LockKeyhole size={22}/>} action={<button className="outline" onClick={()=>void onRefresh()}><RefreshCw size={15}/> Refresh</button>}/><div className="info-banner"><ShieldAlert size={17}/><span>Only Maverick's quarantine directory is eligible for quarantine-item deletion.</span></div><div className="table-card"><div className="table-head"><span>Item</span><span>Size</span><span>Created</span><span></span></div>{items.length?items.map(item=><div className="table-row" key={item.path}><div><strong>{item.name}</strong><small>{item.path}</small></div><div>{formatBytes(item.sizeBytes)}</div><div>{timeLabel(item.createdUtc)}</div><div><ChevronRight size={16}/></div></div>):<Empty text="Quarantine is empty."/ >}</div></section>;
+}
+
+function AIPage({activeChat,composer,setComposer,busy,modelDraft,onSend,onConfigure,highRisk,events,coreState}:{store:MaverickStore;activeChat:MaverickChat|null;composer:string;setComposer:(value:string)=>void;busy:boolean;modelDraft:string;onSend:()=>void;onConfigure:()=>void;highRisk:number;events:number;coreState:string}) {
+  return <section className="section-page"><Heading title="Maverick AI" subtitle="Optional BYOK assistant with access to local Core evidence for security questions." icon={<Bot size={22}/>} action={<button className="outline" onClick={onConfigure}><Settings size={15}/> Configure</button>}/><div className="ai-layout"><div className="chat-card"><div className="chat-toolbar"><span>{modelDraft || 'No model selected'}</span><span className="chat-local">Local journal · optional AI</span></div><div className="chat-messages">{activeChat?.messages.length?activeChat.messages.map((message)=><div className={'chat-message '+message.role} key={message.id}><div className="avatar">{message.role==='assistant'?<img src="/assets/maverick-icon.svg" alt=""/>:'Y'}</div><div><small>{message.role==='assistant'?'Maverick':'You'}</small><p>{message.content}</p></div></div>):<div className="chat-empty"><img src="/assets/maverick-icon.svg" alt="Maverick"/><h3>Hello, I'm Maverick.</h3><p>Ask about your device, security activity, or what an event means.</p></div>}{busy&&<div className="chat-message assistant"><div className="avatar"><img src="/assets/maverick-icon.svg" alt=""/></div><div><small>Maverick</small><div className="typing"><span/><span/><span/></div></div></div>}</div><div className="chat-compose"><textarea value={composer} onChange={(e)=>setComposer(e.target.value)} onKeyDown={(e)=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();onSend();}}} placeholder="Ask Maverick…" rows={1}/><button className="send-chat" disabled={!composer.trim()||busy} onClick={onSend}><Send size={17}/></button></div></div><div className="side-card"><div className="side-card-head"><strong>Security snapshot</strong><RefreshCw size={15}/></div><div className="mini-stat"><span>Core</span><b className={coreState==='online'?'good':'bad'}>{coreState==='online'?'Online':'Offline'}</b></div><div className="mini-stat"><span>High-risk events</span><b>{highRisk}</b></div><div className="mini-stat"><span>Journal events</span><b>{events}</b></div></div></div></section>;
+}
+
+function SettingsPage({store,provider,setProvider,baseUrl,setBaseUrl,key,setKey,model,setModel,models,busy,search,setSearch,filter,setFilter,onLoad,onSave,saved}:{store:MaverickStore;provider:string;setProvider:(v:string)=>void;baseUrl:string;setBaseUrl:(v:string)=>void;key:string;setKey:(v:string)=>void;model:string;setModel:(v:string)=>void;models:MaverickModel[];busy:boolean;search:string;setSearch:(v:string)=>void;filter:'all'|'free';setFilter:(v:'all'|'free')=>void;onLoad:()=>void;onSave:()=>void;saved:boolean}) {
+  const filtered=models.filter((m)=>m.name.toLowerCase().includes(search.toLowerCase())||m.id.toLowerCase().includes(search.toLowerCase())).filter((m)=>filter==='all'||m.free);
+  return <section className="section-page"><Heading title="Settings" subtitle="BYOK, model selection, and local application data." icon={<Settings size={22}/>}/><div className="settings-grid"><div className="settings-card"><div className="card-title">AI provider</div><Field label="Provider"><select value={provider} onChange={(e)=>setProvider(e.target.value)}><option value="openrouter">OpenRouter</option><option value="custom">Custom OpenAI-compatible</option></select></Field><Field label="Base URL"><input value={baseUrl} onChange={(e)=>setBaseUrl(e.target.value)}/></Field><Field label="API key"><input type="password" value={key} onChange={(e)=>setKey(e.target.value)} placeholder={store.settings.hasApiKey?'Saved securely on this device':'Paste your API key'}/></Field><div className="button-row"><button className="outline" disabled={busy} onClick={onLoad}><RefreshCw size={15}/> {busy?'Loading…':'Load models'}</button><button className="primary" onClick={onSave}>Save settings</button></div>{saved&&<div className="saved"><CheckCircle2 size={15}/> Saved locally</div>}<div className="privacy-note"><ShieldCheck size={16}/><span>Your saved key stays in OS-protected local storage and is not exposed to the renderer.</span></div></div><div className="settings-card"><div className="card-title">Model browser</div><div className="model-filters"><div className="model-search"><Search size={15}/><input placeholder="Search models" value={search} onChange={(e)=>setSearch(e.target.value)}/></div><button className={filter==='all'?'filter-btn active':'filter-btn'} onClick={()=>setFilter('all')}>All</button><button className={filter==='free'?'filter-btn active':'filter-btn'} onClick={()=>setFilter('free')}>Free</button></div><div className="model-list">{filtered.slice(0,60).map((m)=><button className={'model-item '+(model===m.id?'selected':'')} key={m.id} onClick={async()=>{setModel(m.id);const settings=await window.maverick.saveSettings({model:m.id});setStoreLocal(settings);}}><div><strong>{m.name}</strong><small>{m.id}</small></div>{m.free&&<span>FREE</span>}</button>)}</div></div></div><div className="settings-card wide"><div className="card-title">Local data</div><div className="privacy-row"><div><strong>Conversations and security journal</strong><span>Stored on this device. Maverick AI is optional and BYOK.</span></div><span className="local-badge">Local</span></div></div></section>;
+
+  async function setStoreLocal(settings:MaverickStore['settings']) {
+    void settings;
+  }
+}
+
+function Field({label,children}:{label:string;children:React.ReactNode}) { return <div className="field"><label>{label}</label>{children}</div>; }
+function MiniCard({title,value,icon,tone}:{title:string;value:number;icon:React.ReactNode;tone:string}) { return <div className={'mini-overview '+tone}><div className="mini-icon">{icon}</div><span>{title}</span><strong>{value}</strong></div>; }
+function Stat({label,value,tone='normal'}:{label:string;value:number;tone?:string}) { return <div className={'stat-card '+tone}><span>{label}</span><strong>{value}</strong></div>; }
+function RiskBadge({value}:{value:string}) { const v=value.toLowerCase(); return <span className={'risk '+(v==='high'?'danger':v==='medium'?'warn':v==='low'?'good':'muted')}>{value}</span>; }
+function Empty({text}:{text:string}) { return <div className="empty-state"><span>•</span>{text}</div>; }
+function formatBytes(n:number){if(!n)return '0 B';const k=1024;const i=Math.floor(Math.log(n)/Math.log(k));return parseFloat((n/Math.pow(k,i)).toFixed(1))+' '+(['B','KB','MB','GB'][i]||'TB');}
