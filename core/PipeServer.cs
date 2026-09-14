@@ -17,6 +17,7 @@ public sealed class PipeServer : BackgroundService
     private readonly ScanService scans;
     private readonly SecurityMonitor monitor;
     private readonly ProtectionService protection;
+    private readonly KnownBadHashStore threatIntelHashes;
 
     public PipeServer(
         FileInspector files,
@@ -25,7 +26,8 @@ public sealed class PipeServer : BackgroundService
         QuarantineMetadata quarantine,
         ScanService scans,
         SecurityMonitor monitor,
-        ProtectionService protection)
+        ProtectionService protection,
+        KnownBadHashStore threatIntelHashes)
     {
         this.files = files;
         this.inventory = inventory;
@@ -34,6 +36,7 @@ public sealed class PipeServer : BackgroundService
         this.scans = scans;
         this.monitor = monitor;
         this.protection = protection;
+        this.threatIntelHashes = threatIntelHashes;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -186,8 +189,10 @@ public sealed class PipeServer : BackgroundService
                 {
                     mode = "user-mode",
                     verdicts = new[] { "Safe", "Suspicious", "Threat" },
-                    automaticContainment = "EICAR test signature only"
+                    automaticContainment = "Deterministic local intelligence and confirmed high-confidence signals"
                 },
+
+                "threatintel.import" => await ImportThreatIntelAsync(root),
 
                 "file.analyze" => await protection.AnalyzeFileAsync(
                     root.GetProperty("path").GetString() ?? "",
@@ -206,6 +211,13 @@ public sealed class PipeServer : BackgroundService
         {
             await WriteResponse(writer, false, null, ex.Message);
         }
+    }
+
+    private async Task<object> ImportThreatIntelAsync(JsonElement root)
+    {
+        var path = root.GetProperty("path").GetString() ?? "";
+        var count = await threatIntelHashes.ImportAsync(path);
+        return new { imported = count };
     }
 
     private async Task<object> ConfigureMonitorAsync(JsonElement root)
