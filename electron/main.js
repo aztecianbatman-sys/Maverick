@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, safeStorage, shell } = require("electron");
+const { app, BrowserWindow, ipcMain, safeStorage, shell, dialog } = require("electron");
 const path = require("node:path");
 const os = require("node:os");
 const fs = require("node:fs/promises");
@@ -226,6 +226,14 @@ app.whenReady().then(async () => {
       model: input?.model || store.settings.model,
       messages: Array.isArray(input?.messages) ? input.messages : [],
     });
+  });
+
+  ipcMain.handle("core:pick-folder", async () => {
+    const result = await dialog.showOpenDialog({
+      properties: ["openDirectory", "createDirectory"],
+      title: "Choose a folder to scan"
+    });
+    return result.canceled ? null : result.filePaths[0] || null;
   });
 
   ipcMain.handle("core:request", async (_, command, payload) => {
