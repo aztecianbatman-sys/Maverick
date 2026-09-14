@@ -79,8 +79,6 @@ export default function App() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      if (target?.tagName === "INPUT" || target?.tagName === "TEXTAREA") return;
       const key = event.key.length === 1 ? event.key.toUpperCase() : "";
       if (!key) return;
       const current = ((window as typeof window & { __maverickCode?: string }).__maverickCode || "") + key;
