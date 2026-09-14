@@ -93,7 +93,15 @@ public sealed class ProcessMonitor : BackgroundService
                 {
                     try
                     {
-                        var verdict = await analyzer.AnalyzeFileAsync(executablePath);
+                        var processSignals = new List<string>();
+                        var processLower = executablePath.ToLowerInvariant();
+                        if (processLower.Contains("\\downloads\\")) processSignals.Add("downloaded-file");
+                        if (processLower.Contains("\\appdata\\local\\temp\\")) processSignals.Add("temporary-location");
+                        if (name.Equals("powershell", StringComparison.OrdinalIgnoreCase) || name.Equals("pwsh", StringComparison.OrdinalIgnoreCase))
+                            processSignals.Add("powershell");
+                        if (name.Equals("cmd", StringComparison.OrdinalIgnoreCase))
+                            processSignals.Add("windows-command-shell");
+                        var verdict = await analyzer.AnalyzeFileAsync(executablePath, processSignals);
 
                         if (verdict.Verdict == "Threat" && verdict.Action == "Quarantine")
                         {
