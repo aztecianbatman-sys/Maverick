@@ -1,6 +1,6 @@
 {
   "name": "maverick",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "private": true,
   "description": "Maverick — your friendly friend for your device.",
   "main": "electron/main.js",
