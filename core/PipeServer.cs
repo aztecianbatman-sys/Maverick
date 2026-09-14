@@ -124,7 +124,7 @@ public sealed class PipeServer : BackgroundService
                 "status" => new
                 {
                     service = "Maverick Core",
-                    version = "0.3.0",
+                    version = "0.4.0",
                     mode = "user-mode",
                     capabilities = new[]
                     {
@@ -137,6 +137,8 @@ public sealed class PipeServer : BackgroundService
                         "filesystem-monitor",
                         "file-protection",
                         "process-monitor",
+                        "threat-intelligence",
+                        "amsi-script-scanning",
                         "journal",
                         "journal-query",
                         "quarantine-metadata",
