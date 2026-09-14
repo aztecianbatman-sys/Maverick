@@ -1,6 +1,4 @@
 using System.IO.Pipes;
-using System.Security.AccessControl;
-using System.Security.Principal;
 using System.Text;
 using System.Text.Json;
 
@@ -68,16 +66,6 @@ public sealed class PipeServer : BackgroundService
 
     private static NamedPipeServerStream CreateServer()
     {
-        var security = new PipeSecurity();
-
-        security.AddAccessRule(
-            new PipeAccessRule(
-                new SecurityIdentifier(
-                    WellKnownSidType.AuthenticatedUserSid, null),
-                PipeAccessRights.ReadWrite |
-                PipeAccessRights.CreateNewInstance,
-                AccessControlType.Allow));
-
         return new NamedPipeServerStream(
             PipeName,
             PipeDirection.InOut,
