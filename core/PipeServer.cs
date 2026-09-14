@@ -85,8 +85,7 @@ public sealed class PipeServer : BackgroundService
             PipeTransmissionMode.Byte,
             PipeOptions.Asynchronous,
             64 * 1024,
-            64 * 1024,
-            security);
+            64 * 1024);
     }
 
     private async Task HandleClientAsync(
