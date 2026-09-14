@@ -5,14 +5,15 @@
   "description": "Maverick — your friendly friend for your device.",
   "main": "electron/main.js",
   "scripts": {
-    "dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
+    "dev": "powershell -ExecutionPolicy Bypass -File scripts/launch-maverick.ps1",
     "build": "tsc -b && vite build",
     "start": "electron .",
     "build:app": "npm run build && electron-builder",
     "core:build": "powershell -ExecutionPolicy Bypass -File scripts/build-core.ps1",
     "core:install": "powershell -ExecutionPolicy Bypass -File scripts/install-core.ps1",
     "core:uninstall": "powershell -ExecutionPolicy Bypass -File scripts/uninstall-core.ps1",
-    "verify:signatures": "powershell -ExecutionPolicy Bypass -File scripts/verify-signatures.ps1"
+    "verify:signatures": "powershell -ExecutionPolicy Bypass -File scripts/verify-signatures.ps1",
+    "launch": "powershell -ExecutionPolicy Bypass -File scripts/launch-maverick.ps1"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
