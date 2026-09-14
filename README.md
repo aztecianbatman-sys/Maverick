@@ -220,3 +220,14 @@ No pretend scans. No fake detections. No invented security claims. If something 
 ## Developer test trigger
 
 For local UI testing, entering **MAVERICK-LUNAR-TEST** anywhere in the app opens the red **HACKERS NOT ALLOWED** developer screen and plays its TTS message. It is a test-only UI path and does not represent a real compromise or detection.
+
+
+## Easiest Windows setup
+
+Extract the repository and double-click **Maverick.cmd**. It runs the full launcher. The launcher installs Node dependencies, installs the missing .NET 8 SDK through Windows Package Manager when available, prepares Electron's required install scripts, builds Maverick Core, requests Administrator permission once to install the Core service, starts it, and opens the desktop app. Microsoft documents the WinGet package ID `Microsoft.DotNet.SDK.8` for the .NET 8 SDK. citeturn576513search0
+
+For command-line use, the equivalent is:
+
+```powershell
+npm run launch
+```
