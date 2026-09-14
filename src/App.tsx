@@ -53,10 +53,22 @@ export default function App() {
   const [settingsSaved, setSettingsSaved] = useState(false);
   const [securityEvents, setSecurityEvents] = useState<MaverickSecurityEvent[]>([]);
   const [journalBusy, setJournalBusy] = useState(false);
+  const [coreState, setCoreState] = useState<"checking" | "online" | "offline">("checking");
 
   const activeChat = useMemo(() => store?.chats.find((c) => c.id === store.activeChatId) ?? null, [store]);
 
   useEffect(() => {
+    let mounted = true;
+    const checkCore = async () => {
+      try {
+        await window.maverick.coreRequest("status");
+        if (mounted) setCoreState("online");
+      } catch {
+        if (mounted) setCoreState("offline");
+      }
+    };
+    void checkCore();
+    const timer = window.setInterval(checkCore, 15000);
     window.maverick.getStore().then((loaded) => {
       let normalized = loaded;
       if (loaded.chats.length === 0) {
@@ -71,6 +83,10 @@ export default function App() {
       window.maverick.cachedModels(loaded.settings.provider).then(setModels);
       window.maverick.configureDefaultMonitoring().catch(() => undefined);
     });
+    return () => {
+      mounted = false;
+      window.clearInterval(timer);
+    };
   }, []);
 
   async function persist(next: MaverickStore) {
@@ -259,7 +275,7 @@ export default function App() {
           <div className="topbar-title">Maverick</div>
           <div className="topbar-right">
             <button className="status-pill" onClick={() => setPanel("activity")} title="Open activity">
-              <span className="status-dot" /> Stable
+              <span className={`status-dot ${coreState === "offline" ? "offline" : ""}`} /> {coreState === "online" ? "Protected" : coreState === "offline" ? "Core offline" : "Checking"}
             </button>
             <button className="status-pill subtle" onClick={() => setPanel("settings")}>
               {store.settings.hasApiKey ? store.settings.model || "Choose model" : "Set up AI"} <ChevronDown size={14}/>
