@@ -1,4 +1,4 @@
-name: Build Maverick Windows test app
+name: Build Maverick Windows app
 
 on:
   push:
