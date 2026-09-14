@@ -79,3 +79,45 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .journal-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;color:#69727c;font-size:10px}.journal-toolbar .refresh{border:1px solid var(--border);background:transparent}
 
 .status-dot.offline{background:#d69b9b;box-shadow:0 0 0 3px rgba(214,155,155,.08)}
+
+.hacker-screen{
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:0;
+  padding:48px;
+  text-align:center;
+  background:
+    radial-gradient(circle at center, rgba(150,0,0,.12), transparent 36%),
+    #120607;
+  color:#fff;
+}
+.hacker-symbol{
+  width:88px;height:88px;border:2px solid rgba(255,70,70,.65);
+  border-radius:28px;display:grid;place-items:center;
+  font-size:46px;font-weight:500;color:#ff7777;
+  box-shadow:0 0 0 10px rgba(255,70,70,.035), 0 28px 80px rgba(0,0,0,.45);
+}
+.hacker-title{
+  margin-top:30px;
+  font-family:"Maverick VI","Segoe UI",system-ui,sans-serif;
+  font-size:42px;font-weight:800;letter-spacing:.12em;
+}
+.hacker-rule{width:54px;height:2px;background:#e96d6d;margin:20px 0 18px}
+.hacker-copy{max-width:620px;margin:0;color:#d4bfc1;font-size:14px;line-height:1.8}
+.hacker-reason{
+  margin-top:26px;min-width:300px;padding:18px 22px;
+  border:1px solid rgba(255,255,255,.09);border-radius:18px;
+  background:rgba(255,255,255,.025);display:flex;flex-direction:column;gap:6px
+}
+.hacker-reason span{font-size:9px;letter-spacing:.16em;color:#9d7477}
+.hacker-reason strong{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:13px;color:#fff}
+.hacker-reason small{font-size:10px;color:#826e70}
+.hacker-button{
+  margin-top:26px;border:1px solid rgba(255,255,255,.14);border-radius:12px;
+  background:#f2e8e9;color:#13090a;padding:10px 15px;cursor:pointer;font-size:12px
+}
+.hacker-button:hover{background:#fff}
+@media(max-width:700px){.hacker-title{font-size:29px}.hacker-copy{font-size:13px}.hacker-reason{min-width:0;width:100%}}
