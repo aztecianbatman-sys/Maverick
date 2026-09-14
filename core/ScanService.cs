@@ -18,7 +18,25 @@ public sealed class ScanService
         var root = Path.GetFullPath(path);
 
         if (File.Exists(root))
-            return await InspectOneAsync(root, cancellationToken);
+        {
+            var analysis = await protection.AnalyzeFileAsync(
+                root,
+                allowQuarantine: true,
+                cancellationToken);
+
+            await journal.RecordAsync(
+                "scan",
+                analysis is not null ? "info" : "warning",
+                "Maverick.Core",
+                $"File scan completed for {root}",
+                analysis,
+                file: root,
+                action: "scan",
+                result: "completed",
+                risk: "info");
+
+            return analysis;
+        }
 
         if (!Directory.Exists(root))
             throw new DirectoryNotFoundException(root);
