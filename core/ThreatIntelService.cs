@@ -19,7 +19,7 @@ public sealed class ThreatIntelService
         this.journal = journal;
     }
 
-    public async Task<(KnownBadHash? HashMatch, IReadOnlyList<string> FamilyMatches, string? Sha256)> AnalyzeAsync(
+    public async Task<(KnownBadHash? HashMatch, IReadOnlyList<string> FamilyMatches, string Sha256)> ComputeAndLookupAsync(
         string path,
         IEnumerable<string> signals,
         CancellationToken token)
@@ -27,7 +27,6 @@ public sealed class ThreatIntelService
         token.ThrowIfCancellationRequested();
 
         var sha256 = await inspector.HashAsync(path);
-
         hashes.TryGet(sha256, out var hashMatch);
         var familyMatches = knowledge.MatchSignals(signals);
 
@@ -46,7 +45,7 @@ public sealed class ThreatIntelService
                     source = hashMatch.Source
                 },
                 file: path,
-                action: "block",
+                action: hashMatch.Action,
                 result: "threat",
                 risk: "high",
                 evidence: new[]
