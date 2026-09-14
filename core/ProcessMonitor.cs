@@ -55,6 +55,8 @@ public sealed class ProcessMonitor : BackgroundService
                 string? executablePath = null;
                 try { executablePath = process.MainModule?.FileName; } catch { }
 
+                var name = process.ProcessName;
+
                 if (!string.IsNullOrWhiteSpace(executablePath))
                     tracker.Add(process.Id, name, executablePath);
 
@@ -77,7 +79,6 @@ public sealed class ProcessMonitor : BackgroundService
                     }
                 }
 
-                var name = process.ProcessName;
                 if (name.Equals("powershell", StringComparison.OrdinalIgnoreCase) ||
                     name.Equals("pwsh", StringComparison.OrdinalIgnoreCase) ||
                     name.Equals("wscript", StringComparison.OrdinalIgnoreCase) ||
