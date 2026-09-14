@@ -13,6 +13,7 @@ public static class Program
             options.ServiceName = "Maverick Core");
 
         builder.Services.AddSingleton<CorePaths>();
+        builder.Services.AddSingleton<IntegrityManifest>();
         builder.Services.AddSingleton<Journal>();
         builder.Services.AddSingleton<FileInspector>();
         builder.Services.AddSingleton<SystemInventory>();
@@ -35,6 +36,7 @@ public static class Program
             sp.GetRequiredService<SecurityMonitor>());
 
         builder.Services.AddHostedService<ProcessMonitor>();
+        builder.Services.AddHostedService<SelfHealthMonitor>();
         builder.Services.AddHostedService<PersistenceMonitor>();
         builder.Services.AddHostedService<PipeServer>();
 
